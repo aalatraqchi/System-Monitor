@@ -23,6 +23,11 @@ endif()
 # Check that Qt can create the window and exit cleanly. This is not a feature test.
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(SystemMonitorTests tests/SystemMonitorTests.cpp src/SystemMonitor.cpp)
+    target_include_directories(SystemMonitorTests PRIVATE src)
+    add_test(NAME physical-memory-sample COMMAND SystemMonitorTests)
+    set_tests_properties(physical-memory-sample PROPERTIES TIMEOUT 10)
+
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)
 endif()

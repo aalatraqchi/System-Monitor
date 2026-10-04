@@ -6,6 +6,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QStatusBar>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
@@ -13,7 +14,7 @@
 namespace {
 // Layouts handle sizing and spacing so the window remains usable when resized.
 QFrame* createMetricCard(const QString& title, const QString& description,
-                        QLabel*& value, QProgressBar*& bar)
+                        QLabel*& value, QProgressBar*& bar, QLabel** detailLabel = nullptr)
 {
     auto* card = new QFrame;
     card->setObjectName("metricCard");
@@ -32,6 +33,9 @@ QFrame* createMetricCard(const QString& title, const QString& description,
     auto* detail = new QLabel(description);
     detail->setObjectName("muted");
     detail->setWordWrap(true);
+    if (detailLabel) {
+        *detailLabel = detail;
+    }
 
     layout->addWidget(heading);
     layout->addWidget(value);
@@ -48,6 +52,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
     setMinimumSize(560, 380);
     buildInterface();
     refreshDisplay();
+
+    // Schedule short samples without blocking the GUI event loop.
+    // Qt stops and deletes this timer when the window is destroyed.
+    auto* refreshTimer = new QTimer(this);
+    refreshTimer->setInterval(1000);
+    connect(refreshTimer, &QTimer::timeout, this, &MainWindow::refreshDisplay);
+    refreshTimer->start();
 }
 
 void MainWindow::buildInterface()
@@ -71,10 +82,10 @@ void MainWindow::buildInterface()
     metrics->addWidget(createMetricCard("CPU", "Overall processor usage",
                                        cpuValue_, cpuBar_));
     metrics->addWidget(createMetricCard("RAM", "Physical memory usage",
-                                       ramValue_, ramBar_));
+                                       ramValue_, ramBar_, &ramDetail_));
     layout->addLayout(metrics);
 
-    auto* note = new QLabel("Base version: live measurements are coming next.");
+    auto* note = new QLabel("RAM refreshes every second. CPU monitoring is coming next.");
     note->setObjectName("muted");
     note->setWordWrap(true);
     layout->addWidget(note);
@@ -86,7 +97,6 @@ void MainWindow::buildInterface()
     actions->addStretch();
     actions->addWidget(refresh);
     layout->addLayout(actions);
-    statusBar()->showMessage("Ready — interface setup complete");
 
     setStyleSheet(R"(
         QMainWindow, QWidget { background: #111827; color: #e5e7eb;
@@ -112,7 +122,23 @@ void MainWindow::refreshDisplay()
 {
     const auto snapshot = monitor_.sample();
     updateMetric(cpuValue_, cpuBar_, snapshot.cpuPercent);
-    updateMetric(ramValue_, ramBar_, snapshot.ramPercent);
+    const auto percent = snapshot.memory
+        ? std::optional<double>{snapshot.memory->percent} : std::nullopt;
+    updateMetric(ramValue_, ramBar_, percent);
+
+    if (!snapshot.memory) {
+        ramDetail_->setText("Physical memory unavailable");
+        statusBar()->showMessage("RAM could not be read. Retrying every second.");
+        return;
+    }
+
+    // GiB uses 1024-based units, matching the byte counts supplied by Windows.
+    constexpr double bytesPerGiB = 1024.0 * 1024.0 * 1024.0;
+    const auto& memory = *snapshot.memory;
+    ramDetail_->setText(QString("%1 / %2 GiB used")
+        .arg(static_cast<double>(memory.usedBytes) / bytesPerGiB, 0, 'f', 2)
+        .arg(static_cast<double>(memory.totalBytes) / bytesPerGiB, 0, 'f', 2));
+    statusBar()->showMessage("Live RAM monitoring — updates every second");
 }
 
 void MainWindow::updateMetric(QLabel* label, QProgressBar* bar,
