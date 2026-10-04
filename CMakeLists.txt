@@ -13,6 +13,8 @@ qt_add_executable(SystemMonitor WIN32
     src/MainWindow.cpp
     src/SystemMonitor.h
     src/SystemMonitor.cpp
+    src/CpuUsageTracker.h
+    src/CpuUsageTracker.cpp
     src/SystemSnapshot.h
 )
 target_link_libraries(SystemMonitor PRIVATE Qt6::Widgets)
@@ -20,13 +22,18 @@ if(MINGW)
     target_compile_options(SystemMonitor PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Check that Qt can create the window and exit cleanly. This is not a feature test.
+# Verify CPU arithmetic, live Windows readings, and application startup.
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(SystemMonitorTests tests/SystemMonitorTests.cpp src/SystemMonitor.cpp)
+    add_executable(SystemMonitorTests tests/SystemMonitorTests.cpp src/SystemMonitor.cpp src/CpuUsageTracker.cpp)
     target_include_directories(SystemMonitorTests PRIVATE src)
-    add_test(NAME physical-memory-sample COMMAND SystemMonitorTests)
-    set_tests_properties(physical-memory-sample PROPERTIES TIMEOUT 10)
+    add_test(NAME live-system-samples COMMAND SystemMonitorTests)
+    set_tests_properties(live-system-samples PROPERTIES TIMEOUT 10)
+
+    add_executable(CpuUsageTrackerTests tests/CpuUsageTrackerTests.cpp src/CpuUsageTracker.cpp)
+    target_include_directories(CpuUsageTrackerTests PRIVATE src)
+    add_test(NAME cpu-usage-calculation COMMAND CpuUsageTrackerTests)
+    set_tests_properties(cpu-usage-calculation PROPERTIES TIMEOUT 10)
 
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)
