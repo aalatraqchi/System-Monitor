@@ -2,7 +2,7 @@
 
 #include <QMainWindow>
 #include "SystemMonitor.h"
-#include "ProcessMonitor.h"
+#include "ProcessSamplingService.h"
 
 class QLabel;
 class QProgressBar;
@@ -14,6 +14,7 @@ class ProcessSortModel;
 class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+    ~MainWindow() override;
 
 private:
     void buildInterface();
@@ -21,10 +22,10 @@ private:
     static void updateMetric(QLabel* label, QProgressBar* bar,
                              const std::optional<double>& percent);
 
-    void refreshProcesses();
+    void updateProcesses(const ProcessSample& processes);
     CpuHistoryGraph* cpuHistory_ = nullptr;
     SystemMonitor monitor_;
-    ProcessMonitor processMonitor_;
+    ProcessSamplingService* processService_ = nullptr;
     ProcessTableModel* processModel_ = nullptr;
     ProcessSortModel* processSort_ = nullptr;
     QTableView* processTable_ = nullptr;
