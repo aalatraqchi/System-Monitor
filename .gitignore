@@ -1,0 +1,15 @@
+# Generated binaries, dependencies, and CMake output.
+/build/
+/build-*/
+/out/
+
+# Personal editor settings.
+/CMakeLists.txt.user*
+*.user
+/.vs/
+/.vscode/
+
+# Local credentials and environment overrides.
+.env
+.env.*
+!.env.example
