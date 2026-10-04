@@ -2,32 +2,29 @@
 
 ## Where things live
 - This folder: source code, README, build scripts, and Git history.
-- GitHub: private remote repository and pull requests.
+- GitHub: private remote repository, pull requests, and Windows CI.
 - Obsidian: milestone checklist and dated progress notes only.
 
 ## Everyday workflow
-1. Start from an up-to-date `main` branch.
-2. Create one branch per feature or fix, such as `feature/ram-monitoring`.
-3. Make small, focused changes and inspect `git diff`.
-4. Build with `build.ps1`, run the startup check, and manually check the behavior.
-5. Commit with a descriptive message, such as `feat: display physical RAM usage`.
-6. Push the branch and open a pull request against `main`.
-7. Review the diff yourself and wait for the Windows build check to pass.
-8. Squash-merge the PR, then update local `main` and the Obsidian notes.
+1. Update `main` with `git pull --ff-only`, then create a branch for one feature or fix.
+2. Make focused changes and inspect `git diff`.
+3. Build with `build.ps1`, run CTest, and manually check behavior affected by the change.
+4. Commit with a descriptive message and push the branch.
+5. Open a pull request against `main`. Review its diff and wait for the Windows build to pass.
+6. Merge the PR, update local `main`, and delete the merged feature branch. Update Obsidian when a milestone is complete.
 
 ```powershell
 git switch main
 git pull --ff-only
-git switch -c feature/ram-monitoring
+git switch -c feature/example
 
 # After implementing and checking the change:
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 & 'E:\QTCreator\Tools\CMake_64\bin\ctest.exe' --test-dir build --output-on-failure
 git diff
-git add src/SystemMonitor.cpp
-# Stage any other changed files intentionally.
-git commit -m "feat: display physical RAM usage"
-git push -u origin feature/ram-monitoring
+git add <changed-files>
+git commit -m "feat: describe the change"
+git push -u origin feature/example
 ```
 
 ## How Git works
@@ -40,10 +37,10 @@ git push -u origin feature/ram-monitoring
 - `origin`: the short name for this project's GitHub remote.
 
 ## Checks and conventions
-- `main` should always build and run. Use feature branches for new work.
-- GitHub Actions builds on Windows and runs the startup check for PRs and `main` pushes.
+- Keep `main` buildable and runnable; use branches for changes.
+- GitHub Actions builds the C++ app and temperature helper on Windows, then runs the C++ tests and helper checks for PRs and `main` pushes.
 - CI uses MSVC with Qt 6.8.3 as a compatibility baseline; local builds use MinGW with Qt 6.12.0.
-- Startup checks catch launch failures; manually verify actual features too.
+- Automated checks catch regressions; manually verify relevant live hardware behavior too.
 - `.gitignore` excludes generated output and personal editor files.
 - `.gitattributes` keeps line endings consistent; `.editorconfig` describes formatting.
 - No automated merging or publishing is configured.
