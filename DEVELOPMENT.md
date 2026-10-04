@@ -42,7 +42,7 @@ git push -u origin feature/ram-monitoring
 ## Checks and conventions
 - `main` should always build and run. Use feature branches for new work.
 - GitHub Actions builds on Windows and runs the startup check for PRs and `main` pushes.
-- CI uses MSVC with Qt 6.12.0; local builds use MinGW with Qt 6.12.0.
+- CI uses MSVC with Qt 6.8.3 as a compatibility baseline; local builds use MinGW with Qt 6.12.0.
 - Startup checks catch launch failures; manually verify actual features too.
 - `.gitignore` excludes generated output and personal editor files.
 - `.gitattributes` keeps line endings consistent; `.editorconfig` describes formatting.
