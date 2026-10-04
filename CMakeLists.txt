@@ -21,14 +21,20 @@ qt_add_executable(SystemMonitor WIN32
     src/CpuHistory.cpp
     src/CpuHistoryGraph.h
     src/CpuHistoryGraph.cpp
-    src/ProcessSamplingService.h
-    src/ProcessSamplingService.cpp
+    src/GpuMonitor.h
+    src/GpuMonitor.cpp
+    src/GpuUsageAggregator.h
+    src/GpuUsageAggregator.cpp
+    src/GpuDashboard.h
+    src/GpuDashboard.cpp
+    src/MonitoringService.h
+    src/MonitoringService.cpp
     src/ProcessMonitor.h
     src/ProcessMonitor.cpp
     src/ProcessTableModel.h
     src/ProcessTableModel.cpp
 )
-target_link_libraries(SystemMonitor PRIVATE Qt6::Widgets psapi)
+target_link_libraries(SystemMonitor PRIVATE Qt6::Widgets psapi pdh dxgi)
 if(MINGW)
     target_compile_options(SystemMonitor PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -48,7 +54,7 @@ if(BUILD_TESTING)
 
     add_executable(ProcessTests tests/ProcessTests.cpp src/ProcessMonitor.cpp src/ProcessTableModel.cpp)
     target_include_directories(ProcessTests PRIVATE src)
-    target_link_libraries(ProcessTests PRIVATE Qt6::Widgets psapi)
+    target_link_libraries(ProcessTests PRIVATE Qt6::Widgets psapi pdh dxgi)
     add_test(NAME process-collection-and-sorting COMMAND ProcessTests)
     set_tests_properties(process-collection-and-sorting PROPERTIES TIMEOUT 15)
 
@@ -57,12 +63,18 @@ if(BUILD_TESTING)
     add_test(NAME cpu-history-retention COMMAND CpuHistoryTests)
     set_tests_properties(cpu-history-retention PROPERTIES TIMEOUT 10)
 
-    add_executable(ProcessSamplingServiceTests tests/ProcessSamplingServiceTests.cpp
-        src/ProcessSamplingService.cpp src/ProcessSamplingService.h src/ProcessMonitor.cpp)
-    target_include_directories(ProcessSamplingServiceTests PRIVATE src)
-    target_link_libraries(ProcessSamplingServiceTests PRIVATE Qt6::Core psapi)
-    add_test(NAME background-process-lifecycle COMMAND ProcessSamplingServiceTests)
+    add_executable(MonitoringServiceTests tests/MonitoringServiceTests.cpp
+        src/MonitoringService.cpp src/MonitoringService.h src/ProcessMonitor.cpp src/GpuMonitor.cpp src/GpuUsageAggregator.cpp)
+    target_include_directories(MonitoringServiceTests PRIVATE src)
+    target_link_libraries(MonitoringServiceTests PRIVATE Qt6::Core psapi pdh dxgi)
+    add_test(NAME background-process-lifecycle COMMAND MonitoringServiceTests)
     set_tests_properties(background-process-lifecycle PROPERTIES TIMEOUT 15)
+
+    add_executable(GpuTests tests/GpuTests.cpp src/GpuMonitor.cpp src/GpuUsageAggregator.cpp)
+    target_link_libraries(GpuTests PRIVATE pdh dxgi)
+    target_include_directories(GpuTests PRIVATE src)
+    add_test(NAME gpu-usage-and-collection COMMAND GpuTests)
+    set_tests_properties(gpu-usage-and-collection PROPERTIES TIMEOUT 15)
 
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)

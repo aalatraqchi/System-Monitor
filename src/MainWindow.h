@@ -2,9 +2,10 @@
 
 #include <QMainWindow>
 #include "SystemMonitor.h"
-#include "ProcessSamplingService.h"
+#include "MonitoringService.h"
 
 class QLabel;
+class GpuDashboard;
 class QProgressBar;
 class QTableView;
 class CpuHistoryGraph;
@@ -23,9 +24,10 @@ private:
                              const std::optional<double>& percent);
 
     void updateProcesses(const ProcessSample& processes);
+    GpuDashboard* gpuDashboard_ = nullptr;
     CpuHistoryGraph* cpuHistory_ = nullptr;
     SystemMonitor monitor_;
-    ProcessSamplingService* processService_ = nullptr;
+    MonitoringService* monitoringService_ = nullptr;
     ProcessTableModel* processModel_ = nullptr;
     ProcessSortModel* processSort_ = nullptr;
     QTableView* processTable_ = nullptr;
