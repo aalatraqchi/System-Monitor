@@ -1,12 +1,16 @@
 #include <QApplication>
 #include <QTimer>
+#include <QIcon>
 #include "MainWindow.h"
 
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
+    QApplication::setStyle("Fusion");
+    QApplication::setOrganizationName("SystemMonitor");
     QApplication::setApplicationName("System Monitor");
     QApplication::setApplicationVersion("0.1.0");
+    QApplication::setWindowIcon(QIcon(":/icons/app.ico"));
 
     MainWindow window;
     window.show();
