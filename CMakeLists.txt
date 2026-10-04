@@ -27,6 +27,10 @@ qt_add_executable(SystemMonitor WIN32
     src/GpuUsageAggregator.cpp
     src/GpuDashboard.h
     src/GpuDashboard.cpp
+    src/TemperatureSnapshot.h
+    src/TemperatureSnapshot.cpp
+    src/TemperatureMonitor.h
+    src/TemperatureMonitor.cpp
     src/MonitoringService.h
     src/MonitoringService.cpp
     src/ProcessMonitor.h
@@ -64,7 +68,8 @@ if(BUILD_TESTING)
     set_tests_properties(cpu-history-retention PROPERTIES TIMEOUT 10)
 
     add_executable(MonitoringServiceTests tests/MonitoringServiceTests.cpp
-        src/MonitoringService.cpp src/MonitoringService.h src/ProcessMonitor.cpp src/GpuMonitor.cpp src/GpuUsageAggregator.cpp)
+        src/MonitoringService.cpp src/MonitoringService.h src/ProcessMonitor.cpp src/GpuMonitor.cpp src/GpuUsageAggregator.cpp
+        src/TemperatureSnapshot.cpp src/TemperatureMonitor.cpp)
     target_include_directories(MonitoringServiceTests PRIVATE src)
     target_link_libraries(MonitoringServiceTests PRIVATE Qt6::Core psapi pdh dxgi)
     add_test(NAME background-process-lifecycle COMMAND MonitoringServiceTests)
@@ -75,6 +80,14 @@ if(BUILD_TESTING)
     target_include_directories(GpuTests PRIVATE src)
     add_test(NAME gpu-usage-and-collection COMMAND GpuTests)
     set_tests_properties(gpu-usage-and-collection PROPERTIES TIMEOUT 15)
+
+    add_executable(TemperatureHelperFixture tests/TemperatureHelperFixture.cpp)
+    add_executable(TemperatureTests tests/TemperatureTests.cpp src/TemperatureSnapshot.cpp src/TemperatureMonitor.cpp)
+    target_include_directories(TemperatureTests PRIVATE src)
+    target_link_libraries(TemperatureTests PRIVATE Qt6::Core)
+    add_dependencies(TemperatureTests TemperatureHelperFixture)
+    add_test(NAME temperature-protocol-and-lifecycle COMMAND TemperatureTests)
+    set_tests_properties(temperature-protocol-and-lifecycle PROPERTIES TIMEOUT 15)
 
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)

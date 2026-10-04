@@ -27,6 +27,8 @@ It builds a release executable and copies the required Qt runtime dependencies.
 - ProcessMonitor: collects process snapshots and closes Windows handles automatically.
 - MonitoringService: collects GPU and process data on a worker and delivers copied snapshots on the GUI thread.
 - GpuMonitor / GpuUsageAggregator / GpuDashboard: read GPU counters, combine engine usage, and display per-GPU cards.
+- TemperatureMonitor / TemperatureSnapshot: manage the helper, validate readings, and match sensors to cards.
+- helpers/TemperatureHelper: a small C# bridge to LibreHardwareMonitor, with CPU/GPU sensor selection.
 - CpuHistory / CpuHistoryGraph: retain timestamped CPU history and draw the graph.
 - ProcessTableModel / ProcessSortModel: display rows and sort names, PIDs, and raw memory values.
 
@@ -40,8 +42,7 @@ long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
 draw the graph, so no extra chart package is needed.
 
 ## Next steps
-1. Add CPU/GPU temperatures where hardware supports them.
-2. Polish and package.
+1. Polish and package (step 10).
 
 ## Version control
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the branch, commit, and pull-request workflow.
@@ -98,8 +99,51 @@ adapters or smaller windows. No vendor SDK or extra runtime installation is requ
 
 Local validation requires live counters on this PC; CI permits unavailable GPU
 hardware and still verifies aggregation, multiple adapters/nodes, invalid readings,
-and queued GPU snapshot delivery. CPU/GPU temperatures remain step 9.
+and queued GPU snapshot delivery.
 
 References:
 - https://devblogs.microsoft.com/directx/gpus-in-the-task-manager/
 - https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhgetformattedcounterarrayw
+
+## Temperatures
+CPU and GPU cards show Celsius readings from a small, separate LibreHardwareMonitor
+0.9.6 helper. All temperature collection happens on the worker; the C++/Qt program
+remains usable if the helper is missing, crashes, or times out. It uses a persistent
+child process with one JSON reply per request, a 2.5-second timeout, cancellation,
+and a 30-second retry delay after failure. Closing the app also closes its helper.
+
+Build it once with a .NET 8 SDK (the .NET runtime is included in its output):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build-temperatures.ps1
+.\build\SystemMonitor.exe
+```
+
+The script uses `build-tools\dotnet\dotnet.exe` if present, otherwise your installed
+SDK. NuGet versions are recorded in `helpers/TemperatureHelper/packages.lock.json`.
+For a Qt Creator build in another directory, pass `-OutputDirectory` pointing to
+`temperature-helper` beside that build's SystemMonitor.exe. CMake can build the
+C++ app without .NET; missing helpers show Unavailable with setup details on hover.
+
+Intel CPU Package or AMD Tctl/Tdie is preferred; the hottest available core is an
+explicitly labeled fallback. On multiple CPU packages, the hottest reading is shown.
+GPU Core is used, excluding hotspot/memory temperatures. GPU names are matched only
+when unique in both snapshots; duplicate model names and linked nodes show unavailable
+temperature instead of assigning a reading to the wrong adapter. Usage still works.
+Null, nonnumeric, and out-of-range readings show Unavailable rather than 0 °C.
+
+Some CPU sensors require the optional PawnIO driver and administrator access. The
+helper never installs a driver or requests elevation. If a supported driver is already
+installed, launching the app as administrator may allow those readings. This PC's
+GPU temperature was verified live; its CPU sensor is unavailable with the current
+driver/access setup. Hover unavailable labels for the reason. ACPI thermal zones are
+not used as a substitute for CPU package temperature.
+
+Automated checks cover sensor selection, parsing, missing/invalid data, GPU identity
+ambiguity, persistent helper requests, timeout, cancellation, and queued delivery.
+CI builds the helper and checks its selection policy without requiring hardware sensors.
+
+Sources and licenses:
+- https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/tree/v0.9.6 (MPL-2.0)
+- https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/v0.9.6/THIRD-PARTY-NOTICES.txt
+- https://www.nuget.org/packages/LibreHardwareMonitorLib/0.9.6
