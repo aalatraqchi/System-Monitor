@@ -5,6 +5,7 @@
 #include <QHeaderView>
 #include <QScrollBar>
 
+#include <QApplication>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -56,14 +57,24 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
     resize(900, 920);
     setMinimumSize(640, 780);
     buildInterface();
+    processService_ = new ProcessSamplingService(this);
+    connect(processService_, &ProcessSamplingService::sampleReady,
+            this, &MainWindow::updateProcesses);
+    connect(qApp, &QCoreApplication::aboutToQuit, processService_, &ProcessSamplingService::stop);
     refreshDisplay();
 
-    // Process collection moves to a worker thread in step 7.
+    // CPU/RAM reads stay short; process scans run independently on the worker.
     // Qt stops and deletes this timer when the window is destroyed.
     auto* refreshTimer = new QTimer(this);
     refreshTimer->setInterval(1000);
     connect(refreshTimer, &QTimer::timeout, this, &MainWindow::refreshDisplay);
     refreshTimer->start();
+}
+
+MainWindow::~MainWindow()
+{
+    // Join the worker before Qt tears down this window's child objects.
+    processService_->stop();
 }
 
 void MainWindow::buildInterface()
@@ -97,7 +108,7 @@ void MainWindow::buildInterface()
     note->setObjectName("muted");
     note->setWordWrap(true);
     layout->addWidget(note);
-    processSummary_ = new QLabel("Running processes");
+    processSummary_ = new QLabel("Collecting process data…");
     layout->addWidget(processSummary_);
     processModel_ = new ProcessTableModel(this);
     processSort_ = new ProcessSortModel(this);
@@ -152,7 +163,7 @@ void MainWindow::buildInterface()
 
 void MainWindow::refreshDisplay()
 {
-    refreshProcesses();
+    processService_->requestRefresh();
     const auto snapshot = monitor_.sample();
     updateMetric(cpuValue_, cpuBar_, snapshot.cpuPercent);
     cpuHistory_->addSample(snapshot.cpuPercent);
@@ -196,9 +207,9 @@ void MainWindow::updateMetric(QLabel* label, QProgressBar* bar,
 }
 
 // Preserve the selected PID and scroll position while replacing each snapshot.
-void MainWindow::refreshProcesses()
+void MainWindow::updateProcesses(const ProcessSample& processes)
 {
-    const auto processes = processMonitor_.sample();
+    Q_ASSERT(QThread::currentThread() == thread());
     if (!processes) {
         processSummary_->setText("Processes unavailable — keeping the last reading and retrying");
         return;

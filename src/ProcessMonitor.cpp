@@ -1,4 +1,5 @@
 #include "ProcessMonitor.h"
+#include <utility>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -25,8 +26,9 @@ private:
 };
 }
 
-std::optional<std::vector<ProcessInfo>> ProcessMonitor::sample() const
+std::optional<std::vector<ProcessInfo>> ProcessMonitor::sample(const std::function<bool()>& cancelled) const
 {
+    if (cancelled && cancelled()) return std::nullopt;
     WindowsHandle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
     if (!snapshot.valid()) return std::nullopt;
 
@@ -39,6 +41,8 @@ std::optional<std::vector<ProcessInfo>> ProcessMonitor::sample() const
     }
 
     do {
+        // Let shutdown interrupt a long scan without leaking its snapshot handle.
+        if (cancelled && cancelled()) return std::nullopt;
         ProcessInfo process{entry.th32ProcessID, entry.szExeFile, std::nullopt};
         WindowsHandle handle(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,
                                          FALSE, entry.th32ProcessID));

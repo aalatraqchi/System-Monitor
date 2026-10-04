@@ -25,6 +25,8 @@ It builds a release executable and copies the required Qt runtime dependencies.
 - `SystemMonitor`: reads Windows CPU times and physical memory independently of the UI.
 - CpuUsageTracker: calculates CPU usage from consecutive counters.
 - ProcessMonitor: collects process snapshots and closes Windows handles automatically.
+- ProcessSamplingService: schedules worker scans and delivers copied snapshots on the GUI thread.
+- CpuHistory / CpuHistoryGraph: retain timestamped CPU history and draw the graph.
 - ProcessTableModel / ProcessSortModel: display rows and sort names, PIDs, and raw memory values.
 
 Qt owns child widgets through their parents. Layouts handle window resizing.
@@ -37,8 +39,8 @@ long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
 draw the graph, so no extra chart package is needed.
 
 ## Next steps
-1. Move process collection to a worker thread.
-2. Add GPU usage and CPU/GPU temperatures where hardware supports them.
+1. Add per-GPU usage to the dashboard.
+2. Add CPU/GPU temperatures where hardware supports them.
 3. Polish and package.
 
 ## Version control
@@ -58,4 +60,23 @@ from Task Manager's frequency-adjusted processor utilization.
 Memory is the working set (resident physical memory), which may include shared pages.
 It can differ from Task Manager's default memory column. Protected or exited processes
 show Unavailable rather than zero. Snapshots refresh every second; sorting, selection,
-and scroll position are retained. Process collection runs on the GUI thread until step 7.
+and scroll position are retained. Process collection runs on a dedicated worker thread.
+
+## Background collection
+A ProcessWorker QObject lives on a QThread. ProcessSamplingService stays on the GUI
+thread and uses queued signals to request scans and receive copied snapshots.
+MainWindow alone updates the table, selection, scroll position, and labels.
+
+Startup, the one-second timer, and Refresh request a scan. If one is already pending
+or running, additional requests are ignored; the next timer tick retries. Failed
+scans retain the last table. CPU/RAM reads and graph updates remain on the GUI thread.
+
+On exit the service requests interruption, quits the worker event loop, and waits
+for the current scan to finish. The collector checks cancellation between process
+reads; Windows API calls already in progress finish normally. Handles close through
+RAII and Qt deletes the worker when the thread finishes. Threads are never forcefully
+terminated.
+
+The background-process-lifecycle test checks a slow scan while the GUI timer keeps
+ticking, result delivery on the main thread, request coalescing, failed-scan recovery,
+active-scan cancellation, repeated stop calls, and live Windows collection.
