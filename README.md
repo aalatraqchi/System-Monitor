@@ -3,8 +3,8 @@
 A Windows desktop application using C++17 and Qt Widgets.
 
 ## Current milestone
-The base window displays CPU and RAM placeholders. Refresh calls the monitoring
-interface; real measurements will be implemented next. No fake usage is shown.
+RAM shows live physical memory usage as a percentage and used/total GiB, refreshed
+once per second. Refresh also samples immediately. CPU remains a placeholder.
 
 ## Build and run
 Open `CMakeLists.txt` in Qt Creator and select **Desktop Qt 6.12.0 MinGW 64-bit**.
@@ -22,15 +22,14 @@ It builds a release executable and copies the required Qt runtime dependencies.
 - `main.cpp`: starts Qt and opens the window.
 - `MainWindow`: builds the UI and displays measurements.
 - `SystemSnapshot`: stores available measurements.
-- `SystemMonitor`: collects data independently of the UI (currently a stub).
+- `SystemMonitor`: reads Windows physical memory independently of the UI.
 
 Qt owns child widgets through their parents. Layouts handle window resizing.
 
 ## Next steps
-1. Read RAM usage through the Windows API.
-2. Add CPU sampling and a one-second refresh timer.
-3. Add a sortable process table.
-4. Add CPU history, background process collection, and UI polish.
+1. Add CPU sampling using the existing one-second refresh timer.
+2. Add a sortable process table.
+3. Add CPU history, background process collection, and UI polish.
 
 ## Version control
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the branch, commit, and pull-request workflow.
