@@ -4,6 +4,7 @@
 #include <QProgressBar>
 #include <QVBoxLayout>
 #include <cmath>
+#include <algorithm>
 
 GpuDashboard::GpuDashboard(QWidget* parent) : QWidget(parent), layout_(new QVBoxLayout(this))
 {
@@ -35,12 +36,16 @@ void GpuDashboard::rebuild(const std::vector<GpuReading>& adapters)
         auto* detail = new QLabel;
         detail->setObjectName("muted");
         detail->setWordWrap(true);
+        auto* temperature = new QLabel("Temperature: Collecting…");
+        temperature->setObjectName("muted");
+        temperature->setWordWrap(true);
         contents->addWidget(heading);
         contents->addWidget(value);
         contents->addWidget(bar);
         contents->addWidget(detail);
+        contents->addWidget(temperature);
         layout_->addWidget(frame);
-        cards_.push_back({adapter.key, adapter.name, frame, value, detail, bar});
+        cards_.push_back({adapter.key, adapter.name, frame, value, detail, temperature, bar});
     }
 }
 
@@ -76,5 +81,26 @@ void GpuDashboard::display(const GpuSnapshot& snapshot)
         card.detail->setText(detail);
         card.bar->setToolTip(gpu.percent
             ? "Busiest GPU engine across all processes" : "No valid GPU utilization reading");
+    }
+    updateTemperatures();
+}
+
+void GpuDashboard::displayTemperatures(const TemperatureSnapshot& snapshot)
+{
+    temperatures_ = snapshot;
+    updateTemperatures();
+}
+
+void GpuDashboard::updateTemperatures()
+{
+    for (const auto& card : cards_) {
+        const auto matches = std::count_if(cards_.begin(), cards_.end(), [&](const auto& candidate) {
+            return QString::fromStdWString(candidate.name).compare(
+                QString::fromStdWString(card.name), Qt::CaseInsensitive) == 0;
+        });
+        const auto reading = gpuTemperature(temperatures_, QString::fromStdWString(card.name),
+                                            matches == 1 && card.key.physicalIndex == 0);
+        card.temperature->setText(temperatureText(reading));
+        card.temperature->setToolTip(reading.celsius ? reading.sensorName : reading.reason);
     }
 }
