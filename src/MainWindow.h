@@ -7,6 +7,7 @@
 class QLabel;
 class QProgressBar;
 class QTableView;
+class CpuHistoryGraph;
 class ProcessTableModel;
 class ProcessSortModel;
 
@@ -21,6 +22,7 @@ private:
                              const std::optional<double>& percent);
 
     void refreshProcesses();
+    CpuHistoryGraph* cpuHistory_ = nullptr;
     SystemMonitor monitor_;
     ProcessMonitor processMonitor_;
     ProcessTableModel* processModel_ = nullptr;
