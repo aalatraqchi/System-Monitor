@@ -4,6 +4,7 @@ project(SystemMonitor VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
@@ -20,6 +21,8 @@ qt_add_executable(SystemMonitor WIN32
     src/CpuHistory.cpp
     src/CpuHistoryGraph.h
     src/CpuHistoryGraph.cpp
+    src/ProcessSamplingService.h
+    src/ProcessSamplingService.cpp
     src/ProcessMonitor.h
     src/ProcessMonitor.cpp
     src/ProcessTableModel.h
@@ -53,6 +56,13 @@ if(BUILD_TESTING)
     target_include_directories(CpuHistoryTests PRIVATE src)
     add_test(NAME cpu-history-retention COMMAND CpuHistoryTests)
     set_tests_properties(cpu-history-retention PROPERTIES TIMEOUT 10)
+
+    add_executable(ProcessSamplingServiceTests tests/ProcessSamplingServiceTests.cpp
+        src/ProcessSamplingService.cpp src/ProcessSamplingService.h src/ProcessMonitor.cpp)
+    target_include_directories(ProcessSamplingServiceTests PRIVATE src)
+    target_link_libraries(ProcessSamplingServiceTests PRIVATE Qt6::Core psapi)
+    add_test(NAME background-process-lifecycle COMMAND ProcessSamplingServiceTests)
+    set_tests_properties(background-process-lifecycle PROPERTIES TIMEOUT 15)
 
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)
