@@ -16,6 +16,10 @@ qt_add_executable(SystemMonitor WIN32
     src/CpuUsageTracker.h
     src/CpuUsageTracker.cpp
     src/SystemSnapshot.h
+    src/CpuHistory.h
+    src/CpuHistory.cpp
+    src/CpuHistoryGraph.h
+    src/CpuHistoryGraph.cpp
     src/ProcessMonitor.h
     src/ProcessMonitor.cpp
     src/ProcessTableModel.h
@@ -44,6 +48,11 @@ if(BUILD_TESTING)
     target_link_libraries(ProcessTests PRIVATE Qt6::Widgets psapi)
     add_test(NAME process-collection-and-sorting COMMAND ProcessTests)
     set_tests_properties(process-collection-and-sorting PROPERTIES TIMEOUT 15)
+
+    add_executable(CpuHistoryTests tests/CpuHistoryTests.cpp src/CpuHistory.cpp)
+    target_include_directories(CpuHistoryTests PRIVATE src)
+    add_test(NAME cpu-history-retention COMMAND CpuHistoryTests)
+    set_tests_properties(cpu-history-retention PROPERTIES TIMEOUT 10)
 
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)

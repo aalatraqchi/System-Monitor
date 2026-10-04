@@ -29,6 +29,13 @@ It builds a release executable and copies the required Qt runtime dependencies.
 
 Qt owns child widgets through their parents. Layouts handle window resizing.
 
+## CPU history
+The dashboard draws a live graph with a fixed 0–100% scale and a rolling 60-second
+window. Monotonic timestamps keep delayed timer readings in the right position.
+Rapid Refresh clicks do not add extra history points. Missing/invalid readings and
+long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
+draw the graph, so no extra chart package is needed.
+
 ## Next steps
 1. Add a sortable process table.
 2. Add CPU history, background process collection, and UI polish.
