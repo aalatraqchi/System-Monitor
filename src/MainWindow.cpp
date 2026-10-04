@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "CpuHistoryGraph.h"
 #include "ProcessTableModel.h"
 #include <QTableView>
 #include <QHeaderView>
@@ -52,8 +53,8 @@ QFrame* createMetricCard(const QString& title, const QString& description,
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 {
     setWindowTitle("System Monitor");
-    resize(900, 720);
-    setMinimumSize(640, 560);
+    resize(900, 920);
+    setMinimumSize(640, 780);
     buildInterface();
     refreshDisplay();
 
@@ -88,6 +89,9 @@ void MainWindow::buildInterface()
     metrics->addWidget(createMetricCard("RAM", "Physical memory usage",
                                        ramValue_, ramBar_, &ramDetail_));
     layout->addLayout(metrics);
+
+    cpuHistory_ = new CpuHistoryGraph;
+    layout->addWidget(cpuHistory_);
 
     auto* note = new QLabel("CPU, RAM, and processes refresh every second. Click a column to sort.");
     note->setObjectName("muted");
@@ -151,6 +155,7 @@ void MainWindow::refreshDisplay()
     refreshProcesses();
     const auto snapshot = monitor_.sample();
     updateMetric(cpuValue_, cpuBar_, snapshot.cpuPercent);
+    cpuHistory_->addSample(snapshot.cpuPercent);
     cpuDetail_->setText(snapshot.cpuPercent
         ? "Overall processor usage" : "Waiting for two valid CPU samples");
     const auto percent = snapshot.memory
