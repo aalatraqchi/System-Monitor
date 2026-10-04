@@ -37,8 +37,9 @@ long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
 draw the graph, so no extra chart package is needed.
 
 ## Next steps
-1. Add a sortable process table.
-2. Add CPU history, background process collection, and UI polish.
+1. Move process collection to a worker thread.
+2. Add GPU usage and CPU/GPU temperatures where hardware supports them.
+3. Polish and package.
 
 ## Version control
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the branch, commit, and pull-request workflow.
