@@ -1,12 +1,15 @@
 #include "MonitoringService.h"
+#include "TemperatureMonitor.h"
 #include <utility>
 
 namespace {
 class MonitoringWorker : public QObject {
     Q_OBJECT
 public:
-    explicit MonitoringWorker(MonitoringService::Sampler sampler, MonitoringService::GpuSampler gpuSampler)
-        : sampler_(std::move(sampler)), gpuSampler_(std::move(gpuSampler)) {}
+    explicit MonitoringWorker(MonitoringService::Sampler sampler, MonitoringService::GpuSampler gpuSampler,
+                              MonitoringService::TemperatureSampler temperatureSampler)
+        : sampler_(std::move(sampler)), gpuSampler_(std::move(gpuSampler)),
+          temperatureSampler_(std::move(temperatureSampler)) {}
     void collect()
     {
         const auto cancelled = [] { return QThread::currentThread()->isInterruptionRequested(); };
@@ -19,27 +22,40 @@ public:
             emit gpuReady(gpu);
         }
         const auto sample = sampler_(cancelled);
-        if (!cancelled()) emit sampleReady(sample);
+        if (cancelled()) return;
+        if (!temperatureSampler_ && !temperatureMonitor_) temperatureMonitor_ = std::make_unique<TemperatureMonitor>();
+        const auto temperatures = temperatureSampler_ ? temperatureSampler_(cancelled)
+                                                       : temperatureMonitor_->sample(cancelled);
+        if (!cancelled()) {
+            emit temperaturesReady(temperatures);
+            // Release the request guard only after all collectors finish.
+            emit sampleReady(sample);
+        }
     }
 signals:
     void sampleReady(const ProcessSample& sample);
     void gpuReady(const GpuSnapshot& sample);
+    void temperaturesReady(const TemperatureSnapshot& sample);
 private:
     MonitoringService::Sampler sampler_;
     MonitoringService::GpuSampler gpuSampler_;
+    MonitoringService::TemperatureSampler temperatureSampler_;
     std::unique_ptr<GpuMonitor> gpuMonitor_;
+    std::unique_ptr<TemperatureMonitor> temperatureMonitor_;
 };
 }
 
-MonitoringService::MonitoringService(QObject* parent, Sampler sampler, GpuSampler gpuSampler)
+MonitoringService::MonitoringService(QObject* parent, Sampler sampler, GpuSampler gpuSampler,
+                                     TemperatureSampler temperatureSampler)
     : QObject(parent)
 {
     qRegisterMetaType<ProcessSample>();
     qRegisterMetaType<GpuSnapshot>();
+    qRegisterMetaType<TemperatureSnapshot>();
     if (!sampler) sampler = [](const CancelCheck& cancelled) {
         return ProcessMonitor{}.sample(cancelled);
     };
-    auto* worker = new MonitoringWorker(std::move(sampler), std::move(gpuSampler));
+    auto* worker = new MonitoringWorker(std::move(sampler), std::move(gpuSampler), std::move(temperatureSampler));
     worker->moveToThread(&workerThread_);
     connect(&workerThread_, &QThread::finished, worker, &QObject::deleteLater);
     connect(this, &MonitoringService::collectRequested,
@@ -53,7 +69,10 @@ MonitoringService::MonitoringService(QObject* parent, Sampler sampler, GpuSample
     connect(worker, &MonitoringWorker::gpuReady, this, [this](const GpuSnapshot& sample) {
         if (!stopping_) emit gpuReady(sample);
     }, Qt::QueuedConnection);
-    workerThread_.setObjectName("Process and GPU collection");
+    connect(worker, &MonitoringWorker::temperaturesReady, this, [this](const TemperatureSnapshot& sample) {
+        if (!stopping_) emit temperaturesReady(sample);
+    }, Qt::QueuedConnection);
+    workerThread_.setObjectName("Process, GPU, and temperature collection");
     workerThread_.start();
 }
 

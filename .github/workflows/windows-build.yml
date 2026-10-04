@@ -36,5 +36,9 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
 
+      - name: Build and check temperature helper
+        shell: pwsh
+        run: .\build-temperatures.ps1 -OutputDirectory "$PWD\build\Release\temperature-helper"
+
       - name: Check application startup
         run: ctest --test-dir build -C Release --output-on-failure

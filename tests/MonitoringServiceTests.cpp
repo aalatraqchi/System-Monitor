@@ -34,7 +34,7 @@ int main(int argc, char** argv)
         while (elapsed.elapsed() < 150 && !cancelled()) QThread::msleep(2);
         if (call == 1) return std::nullopt;
         return std::vector<ProcessInfo>{{42, L"test.exe", 1024}};
-    }, [] { return GpuSnapshot{}; });
+    }, [] { return GpuSnapshot{}; }, [](const auto&) { return TemperatureSnapshot{}; });
     QObject::connect(&service, &MonitoringService::sampleReady, &app,
         [&](const ProcessSample& sample) {
             deliveredOnMain = QThread::currentThread() == app.thread();
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
         while (!cancel()) QThread::msleep(2);
         cancelled = true;
         return std::nullopt;
-    }, [] { return GpuSnapshot{}; });
+    }, [] { return GpuSnapshot{}; }, [](const auto&) { return TemperatureSnapshot{}; });
     int lateDeliveries = 0;
     QObject::connect(&active, &MonitoringService::sampleReady, &app,
                      [&](const ProcessSample&) { ++lateDeliveries; });
@@ -96,13 +96,19 @@ int main(int argc, char** argv)
         loop.quit();
     });
     bool gpuDelivered = false;
+    bool temperaturesDelivered = false;
     QObject::connect(&live, &MonitoringService::gpuReady, &app, [&](const GpuSnapshot&) {
         gpuDelivered = QThread::currentThread() == app.thread();
     });
+    QObject::connect(&live, &MonitoringService::temperaturesReady, &app, [&](const TemperatureSnapshot&) {
+        temperaturesDelivered = QThread::currentThread() == app.thread();
+    });
+    timeout.start(6000);
     live.requestRefresh();
     loop.exec();
     require(!timedOut, "Live worker timed out");
     require(gpuDelivered, "GPU snapshot not delivered on the GUI thread");
+    require(temperaturesDelivered, "Temperature snapshot not delivered on the GUI thread");
     live.stop();
     std::cout << "Worker delivery, responsiveness, coalescing, recovery, and shutdown passed\n";
 }
