@@ -80,12 +80,12 @@ void MainWindow::buildInterface()
     auto* metrics = new QHBoxLayout;
     metrics->setSpacing(18);
     metrics->addWidget(createMetricCard("CPU", "Overall processor usage",
-                                       cpuValue_, cpuBar_));
+                                       cpuValue_, cpuBar_, &cpuDetail_));
     metrics->addWidget(createMetricCard("RAM", "Physical memory usage",
                                        ramValue_, ramBar_, &ramDetail_));
     layout->addLayout(metrics);
 
-    auto* note = new QLabel("RAM refreshes every second. CPU monitoring is coming next.");
+    auto* note = new QLabel("CPU and RAM refresh every second.");
     note->setObjectName("muted");
     note->setWordWrap(true);
     layout->addWidget(note);
@@ -122,13 +122,15 @@ void MainWindow::refreshDisplay()
 {
     const auto snapshot = monitor_.sample();
     updateMetric(cpuValue_, cpuBar_, snapshot.cpuPercent);
+    cpuDetail_->setText(snapshot.cpuPercent
+        ? "Overall processor usage" : "Waiting for two valid CPU samples");
     const auto percent = snapshot.memory
         ? std::optional<double>{snapshot.memory->percent} : std::nullopt;
     updateMetric(ramValue_, ramBar_, percent);
 
     if (!snapshot.memory) {
         ramDetail_->setText("Physical memory unavailable");
-        statusBar()->showMessage("RAM could not be read. Retrying every second.");
+        statusBar()->showMessage("RAM unavailable — retrying every second.");
         return;
     }
 
@@ -138,7 +140,9 @@ void MainWindow::refreshDisplay()
     ramDetail_->setText(QString("%1 / %2 GiB used")
         .arg(static_cast<double>(memory.usedBytes) / bytesPerGiB, 0, 'f', 2)
         .arg(static_cast<double>(memory.totalBytes) / bytesPerGiB, 0, 'f', 2));
-    statusBar()->showMessage("Live RAM monitoring — updates every second");
+    statusBar()->showMessage(snapshot.cpuPercent
+        ? "Live CPU and RAM monitoring — updates every second"
+        : "Collecting CPU samples — RAM is live");
 }
 
 void MainWindow::updateMetric(QLabel* label, QProgressBar* bar,
