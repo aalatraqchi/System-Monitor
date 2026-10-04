@@ -4,8 +4,7 @@
 #include "TemperatureSnapshot.h"
 #include <QWidget>
 
-class QLabel;
-class QProgressBar;
+class MetricCard;
 class QVBoxLayout;
 
 class GpuDashboard : public QWidget {
@@ -17,11 +16,7 @@ private:
     struct Card {
         GpuKey key;
         std::wstring name;
-        QWidget* frame;
-        QLabel* value;
-        QLabel* detail;
-        QLabel* temperature;
-        QProgressBar* bar;
+        MetricCard* widget;
     };
     void rebuild(const std::vector<GpuReading>& adapters);
     void updateTemperatures();

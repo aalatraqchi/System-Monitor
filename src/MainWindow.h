@@ -6,7 +6,8 @@
 
 class QLabel;
 class GpuDashboard;
-class QProgressBar;
+class MetricCard;
+class QTabBar;
 class QTableView;
 class CpuHistoryGraph;
 class ProcessTableModel;
@@ -20,8 +21,7 @@ public:
 private:
     void buildInterface();
     void refreshDisplay();
-    static void updateMetric(QLabel* label, QProgressBar* bar,
-                             const std::optional<double>& percent);
+    void applyTheme(int index);
 
     void updateProcesses(const ProcessSample& processes);
     GpuDashboard* gpuDashboard_ = nullptr;
@@ -32,11 +32,7 @@ private:
     ProcessSortModel* processSort_ = nullptr;
     QTableView* processTable_ = nullptr;
     QLabel* processSummary_ = nullptr;
-    QLabel* cpuValue_ = nullptr;
-    QLabel* cpuDetail_ = nullptr;
-    QLabel* cpuTemperature_ = nullptr;
-    QLabel* ramValue_ = nullptr;
-    QLabel* ramDetail_ = nullptr;
-    QProgressBar* cpuBar_ = nullptr;
-    QProgressBar* ramBar_ = nullptr;
+    MetricCard* cpuCard_ = nullptr;
+    MetricCard* ramCard_ = nullptr;
+    QTabBar* themeTabs_ = nullptr;
 };

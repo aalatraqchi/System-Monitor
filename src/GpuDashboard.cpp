@@ -1,9 +1,6 @@
 #include "GpuDashboard.h"
-#include <QFrame>
-#include <QLabel>
-#include <QProgressBar>
+#include "MetricCard.h"
 #include <QVBoxLayout>
-#include <cmath>
 #include <algorithm>
 
 GpuDashboard::GpuDashboard(QWidget* parent) : QWidget(parent), layout_(new QVBoxLayout(this))
@@ -11,41 +8,19 @@ GpuDashboard::GpuDashboard(QWidget* parent) : QWidget(parent), layout_(new QVBox
     layout_->setContentsMargins(0, 0, 0, 0);
     layout_->setSpacing(18);
     rebuild({{{0, 0}, L"", std::nullopt, {}, GpuReadingStatus::Waiting}});
-    cards_[0].detail->setText("Collecting GPU data…");
+    cards_[0].widget->setDetail("Collecting GPU data…");
 }
 
 void GpuDashboard::rebuild(const std::vector<GpuReading>& adapters)
 {
-    for (const auto& card : cards_) delete card.frame;
+    for (const auto& card : cards_) delete card.widget;
     cards_.clear();
     for (std::size_t i = 0; i < adapters.size(); ++i) {
         const auto& adapter = adapters[i];
-        auto* frame = new QFrame;
-        frame->setObjectName("metricCard");
-        auto* contents = new QVBoxLayout(frame);
-        contents->setContentsMargins(24, 24, 24, 24);
-        contents->setSpacing(14);
-        auto* heading = new QLabel(adapter.name.empty() ? "GPU" : QString("GPU %1").arg(i));
-        heading->setObjectName("metricTitle");
-        auto* value = new QLabel("-- %");
-        value->setObjectName("metricValue");
-        auto* bar = new QProgressBar;
-        bar->setRange(0, 100);
-        bar->setTextVisible(false);
-        bar->setFixedHeight(10);
-        auto* detail = new QLabel;
-        detail->setObjectName("muted");
-        detail->setWordWrap(true);
-        auto* temperature = new QLabel("Temperature: Collecting…");
-        temperature->setObjectName("muted");
-        temperature->setWordWrap(true);
-        contents->addWidget(heading);
-        contents->addWidget(value);
-        contents->addWidget(bar);
-        contents->addWidget(detail);
-        contents->addWidget(temperature);
-        layout_->addWidget(frame);
-        cards_.push_back({adapter.key, adapter.name, frame, value, detail, temperature, bar});
+        auto* card = new MetricCard(adapter.name.empty() ? "GPU" : QString("GPU %1").arg(i));
+        card->setTemperature("Temperature: Collecting…");
+        layout_->addWidget(card);
+        cards_.push_back({adapter.key, adapter.name, card});
     }
 }
 
@@ -69,8 +44,7 @@ void GpuDashboard::display(const GpuSnapshot& snapshot)
     for (std::size_t i = 0; i < adapters.size(); ++i) {
         const auto& gpu = adapters[i];
         auto& card = cards_[i];
-        card.value->setText(gpu.percent ? QString::number(*gpu.percent, 'f', 1) + " %" : "-- %");
-        card.bar->setValue(gpu.percent ? static_cast<int>(std::lround(*gpu.percent)) : 0);
+        card.widget->setUsage(gpu.percent);
         QString detail = QString::fromStdWString(gpu.name);
         if (!detail.isEmpty()) detail += "\n";
         if (gpu.status == GpuReadingStatus::Live)
@@ -78,9 +52,7 @@ void GpuDashboard::display(const GpuSnapshot& snapshot)
         else if (gpu.status == GpuReadingStatus::Waiting) detail += "Waiting for usage samples";
         else detail += snapshot.enumerationAvailable && gpu.name.empty()
             ? "No hardware GPU detected" : "GPU usage unavailable";
-        card.detail->setText(detail);
-        card.bar->setToolTip(gpu.percent
-            ? "Busiest GPU engine across all processes" : "No valid GPU utilization reading");
+        card.widget->setDetail(detail);
     }
     updateTemperatures();
 }
@@ -100,7 +72,6 @@ void GpuDashboard::updateTemperatures()
         });
         const auto reading = gpuTemperature(temperatures_, QString::fromStdWString(card.name),
                                             matches == 1 && card.key.physicalIndex == 0);
-        card.temperature->setText(temperatureText(reading));
-        card.temperature->setToolTip(reading.celsius ? reading.sensorName : reading.reason);
+        card.widget->setTemperature(temperatureText(reading), reading.celsius ? reading.sensorName : reading.reason);
     }
 }
