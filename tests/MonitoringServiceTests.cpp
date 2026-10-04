@@ -1,4 +1,4 @@
-#include "ProcessSamplingService.h"
+#include "MonitoringService.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     QTimer heartbeat;
     QObject::connect(&heartbeat, &QTimer::timeout, [&] { ++heartbeats; });
     heartbeat.start(10);
-    ProcessSamplingService service(nullptr, [&](const auto& cancelled) -> ProcessSample {
+    MonitoringService service(nullptr, [&](const auto& cancelled) -> ProcessSample {
         const int call = ++calls;
         onWorker = QThread::currentThread() != app.thread();
         QElapsedTimer elapsed;
@@ -34,8 +34,8 @@ int main(int argc, char** argv)
         while (elapsed.elapsed() < 150 && !cancelled()) QThread::msleep(2);
         if (call == 1) return std::nullopt;
         return std::vector<ProcessInfo>{{42, L"test.exe", 1024}};
-    });
-    QObject::connect(&service, &ProcessSamplingService::sampleReady, &app,
+    }, [] { return GpuSnapshot{}; });
+    QObject::connect(&service, &MonitoringService::sampleReady, &app,
         [&](const ProcessSample& sample) {
             deliveredOnMain = QThread::currentThread() == app.thread();
             ++deliveries;
@@ -64,14 +64,14 @@ int main(int argc, char** argv)
     // Shut down during a long collection, rather than only while idle.
     std::atomic<bool> started{false};
     std::atomic<bool> cancelled{false};
-    ProcessSamplingService active(nullptr, [&](const auto& cancel) -> ProcessSample {
+    MonitoringService active(nullptr, [&](const auto& cancel) -> ProcessSample {
         started = true;
         while (!cancel()) QThread::msleep(2);
         cancelled = true;
         return std::nullopt;
-    });
+    }, [] { return GpuSnapshot{}; });
     int lateDeliveries = 0;
-    QObject::connect(&active, &ProcessSamplingService::sampleReady, &app,
+    QObject::connect(&active, &MonitoringService::sampleReady, &app,
                      [&](const ProcessSample&) { ++lateDeliveries; });
     active.requestRefresh();
     QElapsedTimer startWait;
@@ -89,15 +89,20 @@ int main(int argc, char** argv)
             "Active shutdown failed or delivered after stopping");
 
     // Exercise the real Windows collector through the same queued connection.
-    ProcessSamplingService live;
-    QObject::connect(&live, &ProcessSamplingService::sampleReady, &app,
+    MonitoringService live;
+    QObject::connect(&live, &MonitoringService::sampleReady, &app,
                      [&](const ProcessSample& sample) {
         require(sample && !sample->empty(), "Live worker collection failed");
         loop.quit();
     });
+    bool gpuDelivered = false;
+    QObject::connect(&live, &MonitoringService::gpuReady, &app, [&](const GpuSnapshot&) {
+        gpuDelivered = QThread::currentThread() == app.thread();
+    });
     live.requestRefresh();
     loop.exec();
     require(!timedOut, "Live worker timed out");
+    require(gpuDelivered, "GPU snapshot not delivered on the GUI thread");
     live.stop();
     std::cout << "Worker delivery, responsiveness, coalescing, recovery, and shutdown passed\n";
 }
