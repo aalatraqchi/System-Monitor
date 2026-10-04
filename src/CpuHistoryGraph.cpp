@@ -1,11 +1,13 @@
 #include "CpuHistoryGraph.h"
 
+#include <QApplication>
 #include <QPainter>
 #include <QPainterPath>
 
 CpuHistoryGraph::CpuHistoryGraph(QWidget* parent) : QWidget(parent)
 {
     clock_.start();
+    setObjectName("cpuHistory");
     setMinimumHeight(170);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     setAccessibleName("CPU usage history, last 60 seconds");
@@ -26,18 +28,20 @@ void CpuHistoryGraph::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(QPen(QColor("#374151"), 1));
-    painter.setBrush(QColor("#1f2937"));
+    // Use the application palette so widget styles cannot dilute axis colors.
+    const auto colors = QApplication::palette();
+    painter.setPen(QPen(colors.color(QPalette::Mid), 1));
+    painter.setBrush(colors.color(QPalette::Base));
     painter.drawRoundedRect(QRectF(rect()).adjusted(1, 1, -1, -1), 10, 10);
-    painter.setPen(QColor("#e5e7eb"));
+    painter.setPen(colors.color(QPalette::Text));
     painter.drawText(QRectF(18, 8, width() - 36, 26), "CPU history — last 60 seconds");
 
     const QRectF plot(52, 44, width() - 72, height() - 72);
     for (int value : {0, 50, 100}) {
         const double y = plot.bottom() - plot.height() * value / 100.0;
-        painter.setPen(QPen(QColor("#374151"), 1));
+        painter.setPen(QPen(colors.color(QPalette::Mid), 1));
         painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
-        painter.setPen(QColor("#9ca3af"));
+        painter.setPen(colors.color(QPalette::PlaceholderText));
         painter.drawText(QRectF(6, y - 9, 40, 18), Qt::AlignRight | Qt::AlignVCenter,
                          QString::number(value) + "%");
     }
@@ -49,8 +53,8 @@ void CpuHistoryGraph::paintEvent(QPaintEvent*)
     bool hasReading = false;
     std::int64_t previousTime = 0;
     painter.setClipRect(plot.adjusted(-3, -3, 3, 3));
-    painter.setPen(QPen(QColor("#38bdf8"), 2));
-    painter.setBrush(QColor("#38bdf8"));
+    painter.setPen(QPen(colors.color(QPalette::Link), 2));
+    painter.setBrush(colors.color(QPalette::Link));
     for (const auto& point : history_.points()) {
         if (!point.percent) { connected = false; continue; }
         const double age = static_cast<double>(nowMs_ - point.timeMs);
@@ -66,7 +70,7 @@ void CpuHistoryGraph::paintEvent(QPaintEvent*)
     painter.setBrush(Qt::NoBrush);
     painter.drawPath(line);
     if (!hasReading) {
-        painter.setPen(QColor("#9ca3af"));
+        painter.setPen(colors.color(QPalette::PlaceholderText));
         painter.drawText(plot, Qt::AlignCenter, "Waiting for CPU samples…");
     }
 }

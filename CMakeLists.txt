@@ -5,13 +5,26 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+enable_language(RC)
+if(MINGW)
+    # This icon-only resource needs no C++ definitions or Qt include paths.
+    # Omitting them avoids windres splitting paths containing spaces.
+    set(CMAKE_RC_COMPILE_OBJECT
+        "<CMAKE_COMMAND> -E chdir \"${CMAKE_CURRENT_SOURCE_DIR}/resources\" <CMAKE_RC_COMPILER> --use-temp-file -O coff SystemMonitor.rc \"${CMAKE_CURRENT_BINARY_DIR}/<OBJECT>\"")
+endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-qt_add_executable(SystemMonitor WIN32
-    src/main.cpp
+set(MONITOR_SOURCES
     src/MainWindow.h
     src/MainWindow.cpp
+    src/AppTheme.h
+    src/AppTheme.cpp
+    src/MetricCard.h
+    src/MetricCard.cpp
+    src/WindowsAccess.h
+    src/WindowsAccess.cpp
     src/SystemMonitor.h
     src/SystemMonitor.cpp
     src/CpuUsageTracker.h
@@ -38,7 +51,10 @@ qt_add_executable(SystemMonitor WIN32
     src/ProcessTableModel.h
     src/ProcessTableModel.cpp
 )
-target_link_libraries(SystemMonitor PRIVATE Qt6::Widgets psapi pdh dxgi)
+qt_add_executable(SystemMonitor WIN32 src/main.cpp ${MONITOR_SOURCES}
+    resources/app.qrc resources/SystemMonitor.rc)
+target_link_libraries(SystemMonitor PRIVATE Qt6::Widgets psapi pdh dxgi advapi32)
+target_include_directories(SystemMonitor PRIVATE resources)
 if(MINGW)
     target_compile_options(SystemMonitor PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -88,6 +104,12 @@ if(BUILD_TESTING)
     add_dependencies(TemperatureTests TemperatureHelperFixture)
     add_test(NAME temperature-protocol-and-lifecycle COMMAND TemperatureTests)
     set_tests_properties(temperature-protocol-and-lifecycle PROPERTIES TIMEOUT 15)
+
+    add_executable(AppThemeTests tests/AppThemeTests.cpp ${MONITOR_SOURCES})
+    target_include_directories(AppThemeTests PRIVATE src)
+    target_link_libraries(AppThemeTests PRIVATE Qt6::Widgets psapi pdh dxgi advapi32)
+    add_test(NAME theme-switching-and-persistence COMMAND AppThemeTests)
+    set_tests_properties(theme-switching-and-persistence PROPERTIES TIMEOUT 20)
 
     add_test(NAME application-startup COMMAND SystemMonitor --smoke-test)
     set_tests_properties(application-startup PROPERTIES TIMEOUT 15)
