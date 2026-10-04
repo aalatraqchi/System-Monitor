@@ -1,9 +1,16 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 
-// Missing values mean a measurement is not available yet, rather than zero usage.
+struct MemoryUsage {
+    std::uint64_t usedBytes;
+    std::uint64_t totalBytes;
+    double percent;
+};
+
+// Missing values mean a measurement is unavailable, rather than zero usage.
 struct SystemSnapshot {
     std::optional<double> cpuPercent;
-    std::optional<double> ramPercent;
+    std::optional<MemoryUsage> memory;
 };
