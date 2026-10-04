@@ -4,7 +4,7 @@ A Windows desktop application using C++17 and Qt Widgets.
 
 ## Current milestone
 CPU and RAM show live usage percentages; RAM also displays used/total GiB, refreshed
-once per second. Refresh also samples immediately. CPU waits for its second reading before displaying a value.
+once per second. Refresh also samples immediately. CPU waits for its second reading before displaying a value. A sortable process table shows names, PIDs, and working-set memory in MiB; unavailable memory stays visible and sorts last.
 
 ## Build and run
 Open `CMakeLists.txt` in Qt Creator and select **Desktop Qt 6.12.0 MinGW 64-bit**.
@@ -23,7 +23,9 @@ It builds a release executable and copies the required Qt runtime dependencies.
 - `MainWindow`: builds the UI and displays measurements.
 - `SystemSnapshot`: stores available measurements.
 - `SystemMonitor`: reads Windows CPU times and physical memory independently of the UI.
-- `CpuUsageTracker`: calculates CPU usage from consecutive counters.
+- CpuUsageTracker: calculates CPU usage from consecutive counters.
+- ProcessMonitor: collects process snapshots and closes Windows handles automatically.
+- ProcessTableModel / ProcessSortModel: display rows and sort names, PIDs, and raw memory values.
 
 Qt owns child widgets through their parents. Layouts handle window resizing.
 
@@ -43,3 +45,9 @@ counters start a fresh baseline. RAM collection remains independent.
 This uses GetSystemTimes; on systems with more than 64 logical processors it covers
 the calling thread's primary processor group. Its time-based percentage may differ
 from Task Manager's frequency-adjusted processor utilization.
+
+## Process memory
+Memory is the working set (resident physical memory), which may include shared pages.
+It can differ from Task Manager's default memory column. Protected or exited processes
+show Unavailable rather than zero. Snapshots refresh every second; sorting, selection,
+and scroll position are retained. Process collection runs on the GUI thread until step 7.
