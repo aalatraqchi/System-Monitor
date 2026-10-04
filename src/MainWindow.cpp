@@ -1,4 +1,8 @@
 #include "MainWindow.h"
+#include "ProcessTableModel.h"
+#include <QTableView>
+#include <QHeaderView>
+#include <QScrollBar>
 
 #include <QFrame>
 #include <QHBoxLayout>
@@ -48,12 +52,12 @@ QFrame* createMetricCard(const QString& title, const QString& description,
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 {
     setWindowTitle("System Monitor");
-    resize(780, 480);
-    setMinimumSize(560, 380);
+    resize(900, 720);
+    setMinimumSize(640, 560);
     buildInterface();
     refreshDisplay();
 
-    // Schedule short samples without blocking the GUI event loop.
+    // Process collection moves to a worker thread in step 7.
     // Qt stops and deletes this timer when the window is destroyed.
     auto* refreshTimer = new QTimer(this);
     refreshTimer->setInterval(1000);
@@ -85,11 +89,29 @@ void MainWindow::buildInterface()
                                        ramValue_, ramBar_, &ramDetail_));
     layout->addLayout(metrics);
 
-    auto* note = new QLabel("CPU and RAM refresh every second.");
+    auto* note = new QLabel("CPU, RAM, and processes refresh every second. Click a column to sort.");
     note->setObjectName("muted");
     note->setWordWrap(true);
     layout->addWidget(note);
-    layout->addStretch();
+    processSummary_ = new QLabel("Running processes");
+    layout->addWidget(processSummary_);
+    processModel_ = new ProcessTableModel(this);
+    processSort_ = new ProcessSortModel(this);
+    processSort_->setSourceModel(processModel_);
+    processTable_ = new QTableView;
+    processTable_->setModel(processSort_);
+    processTable_->setSortingEnabled(true);
+    processTable_->sortByColumn(ProcessTableModel::Memory, Qt::DescendingOrder);
+    processTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    processTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+    processTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    processTable_->setAlternatingRowColors(true);
+    processTable_->verticalHeader()->hide();
+    processTable_->horizontalHeader()->setSectionResizeMode(ProcessTableModel::Name, QHeaderView::Stretch);
+    processTable_->horizontalHeader()->setSectionResizeMode(ProcessTableModel::Id, QHeaderView::ResizeToContents);
+    processTable_->horizontalHeader()->setSectionResizeMode(ProcessTableModel::Memory, QHeaderView::ResizeToContents);
+    processTable_->setMinimumHeight(160);
+    layout->addWidget(processTable_, 1);
 
     auto* actions = new QHBoxLayout;
     auto* refresh = new QPushButton("Refresh");
@@ -114,12 +136,19 @@ void MainWindow::buildInterface()
                       padding: 10px 22px; font-weight: 600; }
         QPushButton:hover { background: #3b82f6; }
         QPushButton:pressed { background: #1d4ed8; }
+        QTableView { background: #111827; alternate-background-color: #1f2937;
+                     gridline-color: #374151; selection-background-color: #2563eb;
+                     selection-color: #ffffff; border: 1px solid #374151; }
+        QHeaderView::section { background: #1f2937; padding: 8px; border: none;
+                               border-bottom: 1px solid #374151; font-weight: 600; }
+        QTableView QTableCornerButton::section { background: #1f2937; }
         QStatusBar { color: #9ca3af; }
     )");
 }
 
 void MainWindow::refreshDisplay()
 {
+    refreshProcesses();
     const auto snapshot = monitor_.sample();
     updateMetric(cpuValue_, cpuBar_, snapshot.cpuPercent);
     cpuDetail_->setText(snapshot.cpuPercent
@@ -159,4 +188,35 @@ void MainWindow::updateMetric(QLabel* label, QProgressBar* bar,
     label->setText(QString::number(value, 'f', 1) + " %");
     bar->setValue(static_cast<int>(std::lround(value)));
     bar->setToolTip(label->text());
+}
+
+// Preserve the selected PID and scroll position while replacing each snapshot.
+void MainWindow::refreshProcesses()
+{
+    const auto processes = processMonitor_.sample();
+    if (!processes) {
+        processSummary_->setText("Processes unavailable — keeping the last reading and retrying");
+        return;
+    }
+
+    const auto selected = processTable_->currentIndex();
+    const bool hadSelection = selected.isValid();
+    const auto selectedPid = hadSelection
+        ? selected.siblingAtColumn(ProcessTableModel::Id).data().toULongLong() : 0;
+    const int scroll = processTable_->verticalScrollBar()->value();
+    int unavailable = 0;
+    for (const auto& process : *processes)
+        if (!process.workingSetBytes) ++unavailable;
+    processModel_->setProcesses(*processes);
+    if (hadSelection) {
+        for (int row = 0; row < processSort_->rowCount(); ++row) {
+            if (processSort_->index(row, ProcessTableModel::Id).data().toULongLong() == selectedPid) {
+                processTable_->selectRow(row);
+                break;
+            }
+        }
+    }
+    processTable_->verticalScrollBar()->setValue(scroll);
+    processSummary_->setText(QString("Running processes: %1  •  Memory unavailable: %2")
+        .arg(processModel_->rowCount()).arg(unavailable));
 }
