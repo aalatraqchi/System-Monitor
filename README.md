@@ -25,7 +25,8 @@ It builds a release executable and copies the required Qt runtime dependencies.
 - `SystemMonitor`: reads Windows CPU times and physical memory independently of the UI.
 - CpuUsageTracker: calculates CPU usage from consecutive counters.
 - ProcessMonitor: collects process snapshots and closes Windows handles automatically.
-- ProcessSamplingService: schedules worker scans and delivers copied snapshots on the GUI thread.
+- MonitoringService: collects GPU and process data on a worker and delivers copied snapshots on the GUI thread.
+- GpuMonitor / GpuUsageAggregator / GpuDashboard: read GPU counters, combine engine usage, and display per-GPU cards.
 - CpuHistory / CpuHistoryGraph: retain timestamped CPU history and draw the graph.
 - ProcessTableModel / ProcessSortModel: display rows and sort names, PIDs, and raw memory values.
 
@@ -39,9 +40,8 @@ long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
 draw the graph, so no extra chart package is needed.
 
 ## Next steps
-1. Add per-GPU usage to the dashboard.
-2. Add CPU/GPU temperatures where hardware supports them.
-3. Polish and package.
+1. Add CPU/GPU temperatures where hardware supports them.
+2. Polish and package.
 
 ## Version control
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the branch, commit, and pull-request workflow.
@@ -63,7 +63,7 @@ show Unavailable rather than zero. Snapshots refresh every second; sorting, sele
 and scroll position are retained. Process collection runs on a dedicated worker thread.
 
 ## Background collection
-A ProcessWorker QObject lives on a QThread. ProcessSamplingService stays on the GUI
+A MonitoringWorker QObject lives on a QThread. MonitoringService stays on the GUI
 thread and uses queued signals to request scans and receive copied snapshots.
 MainWindow alone updates the table, selection, scroll position, and labels.
 
@@ -80,3 +80,26 @@ terminated.
 The background-process-lifecycle test checks a slow scan while the GUI timer keeps
 ticking, result delivery on the main thread, request coalescing, failed-scan recovery,
 active-scan cancellation, repeated stop calls, and live Windows collection.
+
+## GPU usage
+Hardware adapters are identified through DXGI and matched to Windows GPU Engine
+performance counters by their adapter LUID and physical-node index. Software adapters
+are excluded. Process contributions are summed within each engine, then the busiest
+engine is displayed for each GPU. The percentage is capped at 100%; engine percentages
+are not added across independent engines. Cards show the hardware name and busiest
+engine, so video encode/compute activity remains visible alongside 3D activity.
+
+The worker owns the persistent PDH query and uses English counter paths for Windows
+language independence. The first read establishes a baseline; manual refreshes less
+than 900 ms apart reuse the last GPU sample. Missing/invalid counters show unavailable
+usage, and failed queries retry. Valid idle counters show 0%. Known GPU names remain
+visible if adapter enumeration temporarily fails. The dashboard scrolls for multiple
+adapters or smaller windows. No vendor SDK or extra runtime installation is required.
+
+Local validation requires live counters on this PC; CI permits unavailable GPU
+hardware and still verifies aggregation, multiple adapters/nodes, invalid readings,
+and queued GPU snapshot delivery. CPU/GPU temperatures remain step 9.
+
+References:
+- https://devblogs.microsoft.com/directx/gpus-in-the-task-manager/
+- https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhgetformattedcounterarrayw
