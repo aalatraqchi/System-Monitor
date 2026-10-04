@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 #include "CpuHistoryGraph.h"
+#include "GpuDashboard.h"
+#include <QScrollArea>
 #include "ProcessTableModel.h"
 #include <QTableView>
 #include <QHeaderView>
@@ -55,12 +57,13 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 {
     setWindowTitle("System Monitor");
     resize(900, 920);
-    setMinimumSize(640, 780);
+    setMinimumSize(740, 560);
     buildInterface();
-    processService_ = new ProcessSamplingService(this);
-    connect(processService_, &ProcessSamplingService::sampleReady,
+    monitoringService_ = new MonitoringService(this);
+    connect(monitoringService_, &MonitoringService::sampleReady,
             this, &MainWindow::updateProcesses);
-    connect(qApp, &QCoreApplication::aboutToQuit, processService_, &ProcessSamplingService::stop);
+    connect(monitoringService_, &MonitoringService::gpuReady, gpuDashboard_, &GpuDashboard::display);
+    connect(qApp, &QCoreApplication::aboutToQuit, monitoringService_, &MonitoringService::stop);
     refreshDisplay();
 
     // CPU/RAM reads stay short; process scans run independently on the worker.
@@ -74,14 +77,18 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 MainWindow::~MainWindow()
 {
     // Join the worker before Qt tears down this window's child objects.
-    processService_->stop();
+    monitoringService_->stop();
 }
 
 void MainWindow::buildInterface()
 {
     // Qt parents own their child widgets; no manual deletion is needed.
-    auto* central = new QWidget(this);
-    setCentralWidget(central);
+    auto* central = new QWidget;
+    auto* scroll = new QScrollArea(this);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidget(central);
+    setCentralWidget(scroll);
     auto* layout = new QVBoxLayout(central);
     layout->setContentsMargins(28, 28, 28, 20);
     layout->setSpacing(18);
@@ -99,12 +106,15 @@ void MainWindow::buildInterface()
                                        cpuValue_, cpuBar_, &cpuDetail_));
     metrics->addWidget(createMetricCard("RAM", "Physical memory usage",
                                        ramValue_, ramBar_, &ramDetail_));
+    gpuDashboard_ = new GpuDashboard;
+    metrics->addWidget(gpuDashboard_);
+    for (int column = 0; column < 3; ++column) metrics->setStretch(column, 1);
     layout->addLayout(metrics);
 
     cpuHistory_ = new CpuHistoryGraph;
     layout->addWidget(cpuHistory_);
 
-    auto* note = new QLabel("CPU, RAM, and processes refresh every second. Click a column to sort.");
+    auto* note = new QLabel("CPU, RAM, GPU, and processes refresh every second. Click a column to sort.");
     note->setObjectName("muted");
     note->setWordWrap(true);
     layout->addWidget(note);
@@ -163,7 +173,7 @@ void MainWindow::buildInterface()
 
 void MainWindow::refreshDisplay()
 {
-    processService_->requestRefresh();
+    monitoringService_->requestRefresh();
     const auto snapshot = monitor_.sample();
     updateMetric(cpuValue_, cpuBar_, snapshot.cpuPercent);
     cpuHistory_->addSample(snapshot.cpuPercent);
