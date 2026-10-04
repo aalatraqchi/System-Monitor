@@ -3,8 +3,10 @@
 A Windows desktop application using C++17 and Qt Widgets.
 
 ## Current milestone
-CPU and RAM show live usage percentages; RAM also displays used/total GiB, refreshed
-once per second. Refresh also samples immediately. CPU waits for its second reading before displaying a value. A sortable process table shows names, PIDs, and working-set memory in MiB; unavailable memory stays visible and sorts last.
+The personal-use app is complete: live CPU/RAM/GPU usage, supported CPU/GPU
+temperatures, a 60-second CPU graph, and a sortable process table. Monitoring
+refreshes once per second on a background worker where needed. Six appearance
+themes and a shared metric-card layout keep the interface consistent.
 
 ## Build and run
 Open `CMakeLists.txt` in Qt Creator and select **Desktop Qt 6.12.0 MinGW 64-bit**.
@@ -21,6 +23,9 @@ It builds a release executable and copies the required Qt runtime dependencies.
 ## Code map
 - `main.cpp`: starts Qt and opens the window.
 - `MainWindow`: builds the UI and displays measurements.
+- `AppTheme`: defines six palettes and styles; QSettings remembers the selected theme.
+- `MetricCard`: shares the CPU/RAM/GPU card layout and usage presentation.
+- `WindowsAccess`: checks elevation for the setup hint without requesting it.
 - `SystemSnapshot`: stores available measurements.
 - `SystemMonitor`: reads Windows CPU times and physical memory independently of the UI.
 - CpuUsageTracker: calculates CPU usage from consecutive counters.
@@ -41,8 +46,18 @@ Rapid Refresh clicks do not add extra history points. Missing/invalid readings a
 long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
 draw the graph, so no extra chart package is needed.
 
-## Next steps
-1. Polish and package (step 10).
+## Appearance and shortcuts
+Choose **Blue, Dark, Light, Forest, Plum, or Ember** in the theme tabs at the top.
+Blue is the initial default; your selection is remembered for later launches.
+Theme colors also apply to the graph and process table. The header and Refresh
+button remain visible when the dashboard scrolls in a smaller window.
+
+Run `powershell -ExecutionPolicy Bypass -File .\setup-shortcuts.ps1` after building
+to create Desktop and Start menu shortcuts. Both target `build\SystemMonitor.exe`
+and request administrator access on each launch, using the normal Windows UAC
+prompt. This enables supported CPU temperature sensors on this PC. To pin the app,
+right-click the Start menu shortcut and choose **Pin to Start**. Rebuilding updates
+the same executable, so the shortcuts keep working. No public installer is needed.
 
 ## Version control
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the branch, commit, and pull-request workflow.
@@ -137,8 +152,8 @@ helper never installs a driver or requests elevation. If a supported driver is a
 installed, launching the app as administrator may allow those readings. This PC's
 CPU package and GPU temperatures were verified live after installing the official signed
 PawnIO 2.2.0 driver and restarting System Monitor as administrator. For CPU readings on
-this PC, right-click build\SystemMonitor.exe and choose Run as administrator; Windows
-may show a UAC prompt. Ordinary launches still show GPU temperature, while CPU temperature
+this PC, use the System Monitor shortcut created by setup-shortcuts.ps1; Windows
+may show a UAC prompt. You can also right-click build\SystemMonitor.exe and choose Run as administrator. Ordinary launches still show GPU temperature, while CPU temperature
 is unavailable without elevated access. Hover unavailable labels for the reason. ACPI thermal zones are
 not used as a substitute for CPU package temperature.
 
