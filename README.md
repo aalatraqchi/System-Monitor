@@ -135,8 +135,11 @@ Null, nonnumeric, and out-of-range readings show Unavailable rather than 0 °C.
 Some CPU sensors require the optional PawnIO driver and administrator access. The
 helper never installs a driver or requests elevation. If a supported driver is already
 installed, launching the app as administrator may allow those readings. This PC's
-GPU temperature was verified live; its CPU sensor is unavailable with the current
-driver/access setup. Hover unavailable labels for the reason. ACPI thermal zones are
+CPU package and GPU temperatures were verified live after installing the official signed
+PawnIO 2.2.0 driver and restarting System Monitor as administrator. For CPU readings on
+this PC, right-click build\SystemMonitor.exe and choose Run as administrator; Windows
+may show a UAC prompt. Ordinary launches still show GPU temperature, while CPU temperature
+is unavailable without elevated access. Hover unavailable labels for the reason. ACPI thermal zones are
 not used as a substitute for CPU package temperature.
 
 Automated checks cover sensor selection, parsing, missing/invalid data, GPU identity
