@@ -22,7 +22,8 @@
 namespace {
 // Layouts handle sizing and spacing so the window remains usable when resized.
 QFrame* createMetricCard(const QString& title, const QString& description,
-                        QLabel*& value, QProgressBar*& bar, QLabel** detailLabel = nullptr)
+                        QLabel*& value, QProgressBar*& bar, QLabel** detailLabel = nullptr,
+                        QLabel** temperatureLabel = nullptr)
 {
     auto* card = new QFrame;
     card->setObjectName("metricCard");
@@ -49,6 +50,12 @@ QFrame* createMetricCard(const QString& title, const QString& description,
     layout->addWidget(value);
     layout->addWidget(bar);
     layout->addWidget(detail);
+    if (temperatureLabel) {
+        *temperatureLabel = new QLabel("Temperature: Collecting…");
+        (*temperatureLabel)->setObjectName("muted");
+        (*temperatureLabel)->setWordWrap(true);
+        layout->addWidget(*temperatureLabel);
+    }
     return card;
 }
 }
@@ -63,6 +70,17 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
     connect(monitoringService_, &MonitoringService::sampleReady,
             this, &MainWindow::updateProcesses);
     connect(monitoringService_, &MonitoringService::gpuReady, gpuDashboard_, &GpuDashboard::display);
+    connect(monitoringService_, &MonitoringService::temperaturesReady, this,
+        [this](const TemperatureSnapshot& snapshot) {
+            const auto reading = hottestCpuTemperature(snapshot);
+            const auto sensor = reading.sensorName.contains("Package", Qt::CaseInsensitive) ? "CPU package"
+                : reading.sensorName.contains("Tctl/Tdie", Qt::CaseInsensitive) ? "CPU Tctl/Tdie" : "Hottest CPU core";
+            cpuTemperature_->setText(reading.celsius
+                ? QString("%1: %2 °C").arg(sensor).arg(*reading.celsius, 0, 'f', 1)
+                : "Temperature: Unavailable");
+            cpuTemperature_->setToolTip(reading.celsius ? reading.hardwareName + " / " + reading.sensorName : reading.reason);
+            gpuDashboard_->displayTemperatures(snapshot);
+        });
     connect(qApp, &QCoreApplication::aboutToQuit, monitoringService_, &MonitoringService::stop);
     refreshDisplay();
 
@@ -103,7 +121,7 @@ void MainWindow::buildInterface()
     auto* metrics = new QHBoxLayout;
     metrics->setSpacing(18);
     metrics->addWidget(createMetricCard("CPU", "Overall processor usage",
-                                       cpuValue_, cpuBar_, &cpuDetail_));
+                                       cpuValue_, cpuBar_, &cpuDetail_, &cpuTemperature_));
     metrics->addWidget(createMetricCard("RAM", "Physical memory usage",
                                        ramValue_, ramBar_, &ramDetail_));
     gpuDashboard_ = new GpuDashboard;
@@ -114,7 +132,7 @@ void MainWindow::buildInterface()
     cpuHistory_ = new CpuHistoryGraph;
     layout->addWidget(cpuHistory_);
 
-    auto* note = new QLabel("CPU, RAM, GPU, and processes refresh every second. Click a column to sort.");
+    auto* note = new QLabel("Usage, processes, and supported temperatures refresh every second. Click a column to sort.");
     note->setObjectName("muted");
     note->setWordWrap(true);
     layout->addWidget(note);

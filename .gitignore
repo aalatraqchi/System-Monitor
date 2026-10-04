@@ -1,6 +1,9 @@
 # Generated binaries, dependencies, and CMake output.
 /build/
 /build-*/
+/build-tools/
+/helpers/**/bin/
+/helpers/**/obj/
 /out/
 
 # Personal editor settings.

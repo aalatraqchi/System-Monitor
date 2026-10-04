@@ -34,6 +34,7 @@ private:
     QLabel* processSummary_ = nullptr;
     QLabel* cpuValue_ = nullptr;
     QLabel* cpuDetail_ = nullptr;
+    QLabel* cpuTemperature_ = nullptr;
     QLabel* ramValue_ = nullptr;
     QLabel* ramDetail_ = nullptr;
     QProgressBar* cpuBar_ = nullptr;
