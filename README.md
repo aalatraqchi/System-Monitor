@@ -7,7 +7,7 @@ A native Windows desktop system monitor built with C++17 and Qt 6 Widgets.
 
 System Monitor shows live CPU, memory and GPU usage, CPU and GPU temperatures, a rolling CPU history graph and a sortable process list. Slow collectors run on a background worker thread, so the interface stays responsive while it refreshes every second.
 
-![Dashboard](screenshots/dashboard.png)
+![System Monitor dashboard in the Dark theme, showing live CPU, RAM and GPU usage with temperatures](screenshots/dashboard.png)
 
 ## Features
 
@@ -27,12 +27,6 @@ System Monitor shows live CPU, memory and GPU usage, CPU and GPU temperatures, a
 - **Build:** CMake, Ninja or Visual Studio, PowerShell build scripts
 - **Testing:** CTest
 - **CI:** GitHub Actions on Windows (MSVC, Qt 6.8)
-
-## Screenshots
-
-| Light theme | Plum theme |
-| --- | --- |
-| ![Dashboard in the Light theme](screenshots/theme-light.png) | ![Dashboard in the Plum theme](screenshots/theme-plum.png) |
 
 ## Getting Started
 
