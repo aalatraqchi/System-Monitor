@@ -13,7 +13,7 @@ git pull --ff-only
 git switch -c feature/example
 
 powershell -ExecutionPolicy Bypass -File .\build.ps1
-ctest --test-dir build --output-on-failure
+& 'C:\Qt\Tools\CMake_64\bin\ctest.exe' --test-dir build --output-on-failure
 
 git add <changed-files>
 git commit -m "feat: describe the change"

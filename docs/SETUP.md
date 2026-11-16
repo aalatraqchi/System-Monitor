@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Windows 10 or 11 (x64).** The app reads Windows performance counters and Win32 APIs directly, so it does not build on other platforms.
-- **Qt 6.8 or later** with either the MinGW 64-bit kit or an MSVC 2022 64-bit kit. The Qt online installer also provides CMake, Ninja and the matching MinGW compiler under `Tools`.
+- **Qt 6** (tested with 6.8 and 6.12) with either the MinGW 64-bit kit or an MSVC 2022 64-bit kit. The Qt online installer also provides CMake, Ninja and the matching MinGW compiler under `Tools`.
 - **.NET 8 SDK** to build the optional temperature helper. The helper is published self-contained, so running it does not need .NET.
 
 All commands below run from the project root in PowerShell.
@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 `build.ps1` configures and builds a Release build in `build\` with Ninja and Qt's own MinGW compiler, then runs `windeployqt` so the executable runs outside Qt Creator.
 
-By default the script looks in `C:\Qt` and picks the newest Qt version that has a `mingw_64` kit and the newest `Tools\mingw*_64` compiler. Point it somewhere else, or pin the versions, with:
+By default the script looks in `C:\Qt`, picks the newest Qt version that has a `mingw_64` kit, and uses the `Tools\mingw*_64` compiler that kit was built with. Point it somewhere else, or pin the versions, with:
 
 ```powershell
 .\build.ps1 -QtRoot 'D:\Qt' -QtVersion '6.8.3' -MinGW 'mingw1310_64'

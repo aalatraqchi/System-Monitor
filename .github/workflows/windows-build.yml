@@ -27,7 +27,7 @@ jobs:
         shell: pwsh
         run: |
           $failed = $false
-          foreach ($script in Get-ChildItem -Filter *.ps1) {
+          foreach ($script in Get-ChildItem -Recurse -Filter *.ps1) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$null, [ref]$errors) | Out-Null
             foreach ($e in $errors) { Write-Error "$($script.Name):$($e.Extent.StartLineNumber): $($e.Message)" -ErrorAction Continue; $failed = $true }
