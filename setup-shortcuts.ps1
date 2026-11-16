@@ -1,4 +1,4 @@
-# Creates personal shortcuts to this build; Windows will show its normal UAC prompt.
+# Creates Desktop and Start menu shortcuts to this build. Windows shows its normal UAC prompt on launch.
 $ErrorActionPreference = 'Stop'
 $executable = Join-Path $PSScriptRoot 'build\SystemMonitor.exe'
 if (-not (Test-Path -LiteralPath $executable)) { throw 'Run build.ps1 first.' }

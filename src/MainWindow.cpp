@@ -71,7 +71,7 @@ void MainWindow::buildInterface()
     outer->addWidget(title);
     auto* subtitle = new QLabel(hasAdministratorAccess()
         ? "Administrator access • live usage and supported temperatures"
-        : "CPU temperatures need administrator access. Open the System Monitor shortcut to enable them.");
+        : "CPU temperatures need administrator access and, on most systems, the PawnIO driver. Hover a temperature for details.");
     subtitle->setObjectName("muted");
     subtitle->setWordWrap(true);
     outer->addWidget(subtitle);
