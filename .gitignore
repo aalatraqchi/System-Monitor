@@ -6,7 +6,7 @@
 /helpers/**/obj/
 /out/
 
-# Personal editor settings.
+# Editor settings.
 /CMakeLists.txt.user*
 *.user
 /.vs/

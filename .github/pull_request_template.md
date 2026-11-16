@@ -2,5 +2,5 @@
 
 ## Verification
 - [ ] Build succeeds.
-- [ ] Startup check passes.
-- [ ] Changed behavior checked manually (including resizing or errors when relevant).
+- [ ] Tests and startup check pass.
+- [ ] Changed behavior checked manually (including resizing, errors or live hardware readings when relevant).

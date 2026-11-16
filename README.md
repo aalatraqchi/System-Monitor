@@ -1,167 +1,70 @@
 # System Monitor
 
-A Windows desktop application using C++17 and Qt Widgets.
+[![Windows build](https://github.com/aalatraqchi/System-Monitor/actions/workflows/windows-build.yml/badge.svg)](https://github.com/aalatraqchi/System-Monitor/actions/workflows/windows-build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Current milestone
-The personal-use app is complete: live CPU/RAM/GPU usage, supported CPU/GPU
-temperatures, a 60-second CPU graph, and a sortable process table. Monitoring
-refreshes once per second on a background worker where needed. Six appearance
-themes and a shared metric-card layout keep the interface consistent.
+A native Windows desktop system monitor built with C++17 and Qt 6 Widgets.
 
-## Build and run
-Open `CMakeLists.txt` in Qt Creator and select **Desktop Qt 6.12.0 MinGW 64-bit**.
-Build and run using Qt Creator, or run this from PowerShell:
+System Monitor shows live CPU, memory and GPU usage, CPU and GPU temperatures, a rolling CPU history graph and a sortable process list. Slow collectors run on a background worker thread, so the interface stays responsive while it refreshes every second.
+
+<!-- SCREENSHOT -->
+
+## Features
+
+- **Live usage:** CPU and RAM usage from Windows system counters, refreshed every second.
+- **Per-GPU dashboard:** Usage for each hardware GPU from Windows GPU Engine performance counters, with the busiest engine (3D, video encode, compute and so on) named on each card.
+- **Temperatures:** CPU package and GPU core temperatures through a small LibreHardwareMonitor helper process, with clear "Unavailable" states and reasons instead of misleading zeros.
+- **CPU history graph:** A 60-second rolling graph drawn with QPainter, with gaps for missing readings and correct spacing for late timer ticks.
+- **Process table:** Sortable by name, PID and memory, keeping selection and scroll position across refreshes.
+- **Background collection:** Process, GPU and temperature sampling runs on a worker `QThread` with request coalescing, cancellation and clean shutdown.
+- **Themes:** Six color themes (Blue, Dark, Light, Forest, Plum, Ember), remembered between launches.
+- **Automated testing:** 9 CTest suites covering CPU and GPU arithmetic, process collection and sorting, history retention, worker lifecycle, the temperature helper protocol, theme persistence and application startup, plus a self-test for the helper's sensor selection.
+
+## Tech Stack
+
+- **Application:** C++17, Qt 6 Widgets, Win32 APIs (PDH, DXGI, PSAPI)
+- **Temperature helper:** C# / .NET 8, LibreHardwareMonitorLib
+- **Build:** CMake, Ninja or Visual Studio, PowerShell build scripts
+- **Testing:** CTest
+- **CI:** GitHub Actions on Windows (MSVC, Qt 6.8)
+
+## Getting Started
+
+Requirements: Windows 10 or 11 (x64), Qt 6.8 or later with a MinGW or MSVC kit, and CMake. The temperature helper also needs the .NET 8 SDK to build.
+
+With the Qt online installer's default layout (`C:\Qt`), build and run from PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
-.\build\SystemMonitor.exe
-```
-
-The script uses the Qt installation at `C:\Qt`. Pass `-QtRoot` if it moves.
-It builds a release executable and copies the required Qt runtime dependencies.
-
-## Code map
-- `main.cpp`: starts Qt and opens the window.
-- `MainWindow`: builds the UI and displays measurements.
-- `AppTheme`: defines six palettes and styles; QSettings remembers the selected theme.
-- `MetricCard`: shares the CPU/RAM/GPU card layout and usage presentation.
-- `WindowsAccess`: checks elevation for the setup hint without requesting it.
-- `SystemSnapshot`: stores available measurements.
-- `SystemMonitor`: reads Windows CPU times and physical memory independently of the UI.
-- CpuUsageTracker: calculates CPU usage from consecutive counters.
-- ProcessMonitor: collects process snapshots and closes Windows handles automatically.
-- MonitoringService: collects GPU and process data on a worker and delivers copied snapshots on the GUI thread.
-- GpuMonitor / GpuUsageAggregator / GpuDashboard: read GPU counters, combine engine usage, and display per-GPU cards.
-- TemperatureMonitor / TemperatureSnapshot: manage the helper, validate readings, and match sensors to cards.
-- helpers/TemperatureHelper: a small C# bridge to LibreHardwareMonitor, with CPU/GPU sensor selection.
-- CpuHistory / CpuHistoryGraph: retain timestamped CPU history and draw the graph.
-- ProcessTableModel / ProcessSortModel: display rows and sort names, PIDs, and raw memory values.
-
-Qt owns child widgets through their parents. Layouts handle window resizing.
-
-## CPU history
-The dashboard draws a live graph with a fixed 0–100% scale and a rolling 60-second
-window. Monotonic timestamps keep delayed timer readings in the right position.
-Rapid Refresh clicks do not add extra history points. Missing/invalid readings and
-long pauses create gaps; old readings expire automatically. Qt Widgets/QPainter
-draw the graph, so no extra chart package is needed.
-
-## Appearance and shortcuts
-Choose **Blue, Dark, Light, Forest, Plum, or Ember** in the theme tabs at the top.
-Blue is the initial default; your selection is remembered for later launches.
-Theme colors also apply to the graph and process table. The header and Refresh
-button remain visible when the dashboard scrolls in a smaller window.
-
-Run `powershell -ExecutionPolicy Bypass -File .\setup-shortcuts.ps1` after building
-to create Desktop and Start menu shortcuts. Both target `build\SystemMonitor.exe`
-and request administrator access on each launch, using the normal Windows UAC
-prompt. This enables supported CPU temperature sensors on this PC. To pin the app,
-right-click the Start menu shortcut and choose **Pin to Start**. Rebuilding updates
-the same executable, so the shortcuts keep working. No public installer is needed.
-
-## Version control
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the branch, commit, and pull-request workflow.
-
-## CPU measurement
-CPU usage is busy CPU time divided by total CPU time over the sampling interval.
-Windows kernel time includes idle time, which is subtracted once. Rapid refreshes
-without new counter ticks retain the last valid percentage. Failed reads or reset
-counters start a fresh baseline. RAM collection remains independent.
-
-This uses GetSystemTimes; on systems with more than 64 logical processors it covers
-the calling thread's primary processor group. Its time-based percentage may differ
-from Task Manager's frequency-adjusted processor utilization.
-
-## Process memory
-Memory is the working set (resident physical memory), which may include shared pages.
-It can differ from Task Manager's default memory column. Protected or exited processes
-show Unavailable rather than zero. Snapshots refresh every second; sorting, selection,
-and scroll position are retained. Process collection runs on a dedicated worker thread.
-
-## Background collection
-A MonitoringWorker QObject lives on a QThread. MonitoringService stays on the GUI
-thread and uses queued signals to request scans and receive copied snapshots.
-MainWindow alone updates the table, selection, scroll position, and labels.
-
-Startup, the one-second timer, and Refresh request a scan. If one is already pending
-or running, additional requests are ignored; the next timer tick retries. Failed
-scans retain the last table. CPU/RAM reads and graph updates remain on the GUI thread.
-
-On exit the service requests interruption, quits the worker event loop, and waits
-for the current scan to finish. The collector checks cancellation between process
-reads; Windows API calls already in progress finish normally. Handles close through
-RAII and Qt deletes the worker when the thread finishes. Threads are never forcefully
-terminated.
-
-The background-process-lifecycle test checks a slow scan while the GUI timer keeps
-ticking, result delivery on the main thread, request coalescing, failed-scan recovery,
-active-scan cancellation, repeated stop calls, and live Windows collection.
-
-## GPU usage
-Hardware adapters are identified through DXGI and matched to Windows GPU Engine
-performance counters by their adapter LUID and physical-node index. Software adapters
-are excluded. Process contributions are summed within each engine, then the busiest
-engine is displayed for each GPU. The percentage is capped at 100%; engine percentages
-are not added across independent engines. Cards show the hardware name and busiest
-engine, so video encode/compute activity remains visible alongside 3D activity.
-
-The worker owns the persistent PDH query and uses English counter paths for Windows
-language independence. The first read establishes a baseline; manual refreshes less
-than 900 ms apart reuse the last GPU sample. Missing/invalid counters show unavailable
-usage, and failed queries retry. Valid idle counters show 0%. Known GPU names remain
-visible if adapter enumeration temporarily fails. The dashboard scrolls for multiple
-adapters or smaller windows. No vendor SDK or extra runtime installation is required.
-
-Local validation requires live counters on this PC; CI permits unavailable GPU
-hardware and still verifies aggregation, multiple adapters/nodes, invalid readings,
-and queued GPU snapshot delivery.
-
-References:
-- https://devblogs.microsoft.com/directx/gpus-in-the-task-manager/
-- https://learn.microsoft.com/en-us/windows/win32/api/pdh/nf-pdh-pdhgetformattedcounterarrayw
-
-## Temperatures
-CPU and GPU cards show Celsius readings from a small, separate LibreHardwareMonitor
-0.9.6 helper. All temperature collection happens on the worker; the C++/Qt program
-remains usable if the helper is missing, crashes, or times out. It uses a persistent
-child process with one JSON reply per request, a 2.5-second timeout, cancellation,
-and a 30-second retry delay after failure. Closing the app also closes its helper.
-
-Build it once with a .NET 8 SDK (the .NET runtime is included in its output):
-
-```powershell
 powershell -ExecutionPolicy Bypass -File .\build-temperatures.ps1
 .\build\SystemMonitor.exe
 ```
 
-The script uses `build-tools\dotnet\dotnet.exe` if present, otherwise your installed
-SDK. NuGet versions are recorded in `helpers/TemperatureHelper/packages.lock.json`.
-For a Qt Creator build in another directory, pass `-OutputDirectory` pointing to
-`temperature-helper` beside that build's SystemMonitor.exe. CMake can build the
-C++ app without .NET; missing helpers show Unavailable with setup details on hover.
+You can also open `CMakeLists.txt` in Qt Creator. See [Setup Instructions](docs/SETUP.md) for other Qt locations, Visual Studio builds and enabling CPU temperatures.
 
-Intel CPU Package or AMD Tctl/Tdie is preferred; the hottest available core is an
-explicitly labeled fallback. On multiple CPU packages, the hottest reading is shown.
-GPU Core is used, excluding hotspot/memory temperatures. GPU names are matched only
-when unique in both snapshots; duplicate model names and linked nodes show unavailable
-temperature instead of assigning a reading to the wrong adapter. Usage still works.
-Null, nonnumeric, and out-of-range readings show Unavailable rather than 0 °C.
+## Testing
 
-Some CPU sensors require the optional PawnIO driver and administrator access. The
-helper never installs a driver or requests elevation. If a supported driver is already
-installed, launching the app as administrator may allow those readings. This PC's
-CPU package and GPU temperatures were verified live after installing the official signed
-PawnIO 2.2.0 driver and restarting System Monitor as administrator. For CPU readings on
-this PC, use the System Monitor shortcut created by setup-shortcuts.ps1; Windows
-may show a UAC prompt. You can also right-click build\SystemMonitor.exe and choose Run as administrator. Ordinary launches still show GPU temperature, while CPU temperature
-is unavailable without elevated access. Hover unavailable labels for the reason. ACPI thermal zones are
-not used as a substitute for CPU package temperature.
+After building, run the test suite with CTest:
 
-Automated checks cover sensor selection, parsing, missing/invalid data, GPU identity
-ambiguity, persistent helper requests, timeout, cancellation, and queued delivery.
-CI builds the helper and checks its selection policy without requiring hardware sensors.
+```powershell
+ctest --test-dir build --output-on-failure
+```
 
-Sources and licenses:
-- https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/tree/v0.9.6 (MPL-2.0)
-- https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/v0.9.6/THIRD-PARTY-NOTICES.txt
-- https://www.nuget.org/packages/LibreHardwareMonitorLib/0.9.6
+Every pull request and push to `main` is built and tested on a GitHub-hosted Windows runner. Tests that need live hardware, such as GPU counters, accept unavailable hardware there and still check the calculation logic.
+
+## Current Scope
+
+- Windows only. It reads Windows performance counters and Win32 APIs directly.
+- CPU temperatures need administrator access and, on many systems, the signed PawnIO driver. The app never installs drivers or requests elevation by itself; without them it still shows usage and GPU temperature.
+- There is no installer. The build scripts produce a runnable folder, and an optional script creates Start menu and desktop shortcuts.
+
+## Documentation
+
+- [Setup Instructions](docs/SETUP.md): prerequisites, building, temperature helper and shortcuts
+- [Architecture](docs/ARCHITECTURE.md): code layout, threading model and design decisions
+- [Measurements](docs/MEASUREMENTS.md): how CPU, memory, GPU and temperature readings are calculated
+- [Development](docs/DEVELOPMENT.md): branch workflow, CI and conventions
+
+## License
+
+[MIT](LICENSE). Third-party components are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
