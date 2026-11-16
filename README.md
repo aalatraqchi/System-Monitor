@@ -7,7 +7,7 @@ A native Windows desktop system monitor built with C++17 and Qt 6 Widgets.
 
 System Monitor shows live CPU, memory and GPU usage, CPU and GPU temperatures, a rolling CPU history graph and a sortable process list. Slow collectors run on a background worker thread, so the interface stays responsive while it refreshes every second.
 
-<!-- SCREENSHOT -->
+![Dashboard](screenshots/dashboard.png)
 
 ## Features
 
@@ -28,9 +28,15 @@ System Monitor shows live CPU, memory and GPU usage, CPU and GPU temperatures, a
 - **Testing:** CTest
 - **CI:** GitHub Actions on Windows (MSVC, Qt 6.8)
 
+## Screenshots
+
+| Light theme | Plum theme |
+| --- | --- |
+| ![Dashboard in the Light theme](screenshots/theme-light.png) | ![Dashboard in the Plum theme](screenshots/theme-plum.png) |
+
 ## Getting Started
 
-Requirements: Windows 10 or 11 (x64), Qt 6.8 or later with a MinGW or MSVC kit, and CMake. The temperature helper also needs the .NET 8 SDK to build.
+Requirements: Windows 10 or 11 (x64), Qt 6 with a MinGW or MSVC kit (tested with Qt 6.8 and 6.12), and CMake. The temperature helper also needs the .NET 8 SDK to build.
 
 With the Qt online installer's default layout (`C:\Qt`), build and run from PowerShell:
 
@@ -49,6 +55,8 @@ After building, run the test suite with CTest:
 ```powershell
 ctest --test-dir build --output-on-failure
 ```
+
+If `ctest` is not on your `PATH`, use the copy that ships with Qt, such as `C:\Qt\Tools\CMake_64\bin\ctest.exe`.
 
 Every pull request and push to `main` is built and tested on a GitHub-hosted Windows runner. Tests that need live hardware, such as GPU counters, accept unavailable hardware there and still check the calculation logic.
 
